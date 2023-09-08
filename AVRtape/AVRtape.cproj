@@ -28,15 +28,15 @@
     <eraseonlaunchrule>0</eraseonlaunchrule>
     <AsfFrameworkConfig>
       <framework-data>
-  <options />
-  <configurations />
-  <files />
-  <documentation help="" />
-  <offline-documentation help="" />
-  <dependencies>
-    <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.31.0" />
-  </dependencies>
-</framework-data>
+        <options />
+        <configurations />
+        <files />
+        <documentation help="" />
+        <offline-documentation help="" />
+        <dependencies>
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.31.0" />
+        </dependencies>
+      </framework-data>
     </AsfFrameworkConfig>
     <avrtool>com.atmel.avrdbg.tool.simulator</avrtool>
     <avrtoolserialnumber />
@@ -157,6 +157,12 @@
     <None Include="calc_crc.h">
       <SubType>compile</SubType>
     </None>
+    <Compile Include="common_log.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="common_log.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="config.h">
       <SubType>compile</SubType>
     </Compile>
@@ -185,6 +191,21 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="drv_uart.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="mech_crp42602y.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="mech_crp42602y.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="mech_tanashin.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="mech_tanashin.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="strings.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="strings.h">

@@ -6,7 +6,7 @@
  * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
  * Description:		Hardware defines (pseudo-HAL) and setup routines
  *
- */ 
+ */
 
 #ifndef DRV_IO_H_
 #define DRV_IO_H_
@@ -19,50 +19,50 @@
 #define BTN_PORT_1			PORTC
 #define BTN_DIR_1			DDRC
 #define BTN_SRC_1			PINC
-#define BTN_1				(1<<1)
-#define BTN_2				(1<<2)
-#define BTN_3				(1<<3)
-#define BTN_4				(1<<4)
-#define BTN_5				(1<<5)
-#define BTN_6				(1<<0)
-#define BTN_STOP_STATE		(BTN_SRC_1&BTN_1)	// Stop button
-#define BTN_PLAY_STATE		(BTN_SRC_1&BTN_2)	// Play/reverse button
-#define BTN_PLAY_REV_STATE	(BTN_SRC_1&BTN_6)	// Play in reverse button
-#define BTN_REWD_STATE		(BTN_SRC_1&BTN_3)	// Rewind button
-#define BTN_FFWD_STATE		(BTN_SRC_1&BTN_4)	// Fast forward button
-#define BTN_REC_STATE		(BTN_SRC_1&BTN_5)	// Record button
+#define BTN_1				(1<<0)
+#define BTN_2				(1<<1)
+#define BTN_3				(1<<2)
+#define BTN_4				(1<<3)
+#define BTN_5				(1<<4)
+#define BTN_6				(1<<5)
+#define BTN_REWD_STATE		(BTN_SRC_1&BTN_1)			// Rewind button
+#define BTN_STOP_STATE		(BTN_SRC_1&BTN_2)			// Stop button
+#define BTN_FFWD_STATE		(BTN_SRC_1&BTN_3)			// Fast forward button
+#define BTN_PLAY_STATE		(BTN_SRC_1&BTN_4)			// Play/reverse button
+#define BTN_PLAY_REV_STATE	(BTN_SRC_1&BTN_5)			// Play in reverse button
+#define BTN_REC_STATE		(BTN_SRC_1&BTN_6)			// Record button
 
 // Sensors and switches.
 #define SW_PORT				PORTD
 #define SW_DIR				DDRD
 #define SW_SRC				PIND
-#define SW_1				(1<<6)
-#define SW_2				(1<<5)
+#define SW_1				(1<<2)
+#define SW_2				(1<<3)
 #define SW_3				(1<<4)
-#define SW_4				(1<<3)
-#define SW_5				(1<<2)
-#define SW_TAPE_IN_STATE	(SW_SRC&SW_1)		// Tape is present
-#define SW_STOP_STATE		(SW_SRC&SW_2)		// Tape transport in mechanical "STOP" mode
-#define SW_TACHO_STATE		(SW_SRC&SW_3)		// Tape pickup tachometer
-#define SW_NOREC_FWD_STATE	(SW_SRC&SW_4)		// Rec inhibit in forward direction
-#define SW_NOREC_REV_STATE	(SW_SRC&SW_5)		// Rec inhibit in reverse direction
+#define SW_4				(1<<5)
+#define SW_5				(1<<6)
+#define SW_TACHO_STATE		(SW_SRC&SW_1)				// Tape pickup tachometer
+#define SW_STOP_STATE		(SW_SRC&SW_2)				// Tape transport in mechanical "STOP" mode/"HOME" state
+#define SW_TAPE_IN_STATE	(SW_SRC&SW_3)				// Tape presence sensor
+#define SW_NOREC_FWD_STATE	(SW_SRC&SW_4)				// Record inhibit in forward direction
+#define SW_NOREC_REV_STATE	(SW_SRC&SW_5)				// Record inhibit in reverse direction
 
 // Record output control.
 #define REC_EN_PORT			PORTD
 #define REC_EN_DIR			DDRD
 #define REC_EN_SRC			PIND
 #define REC_EN_BIT			(1<<7)
-#define REC_EN_ON			REC_EN_PORT|=REC_EN_BIT
-#define REC_EN_OFF			REC_EN_PORT&=~REC_EN_BIT
+#define REC_EN_ON			REC_EN_PORT|=REC_EN_BIT		// Record enable for bias circuit and head amplifier mode
+#define REC_EN_OFF			REC_EN_PORT&=~REC_EN_BIT	// Record disable for bias circuit and head amplifier mode
 #define REC_EN_STATE		(REC_EN_SRC&REC_EN_BIT)
 
-// Actuator/solenoid control.
+// Transport mode actuator/solenoid control.
 #define SOL_PORT			PORTB
 #define SOL_DIR				DDRB
 #define SOL_SRC				PINB
 #define SOL_BIT				(1<<0)
-#define SOLENOID_ON			SOL_PORT|=SOL_BIT
-#define SOLENOID_OFF		SOL_PORT&=~SOL_BIT
+#define SOLENOID_ON			SOL_PORT|=SOL_BIT			// Energize transport actuator
+#define SOLENOID_OFF		SOL_PORT&=~SOL_BIT			// Turn off transport actuator
 #define SOLENOID_STATE		(SOL_SRC&SOL_BIT)
 
 // Capstan motor control.
@@ -70,11 +70,11 @@
 #define CAPSTAN_DIR			DDRB
 #define CAPSTAN_SRC			PINB
 #define CAPSTAN_BIT			(1<<1)
-#define CAPSTAN_ON			CAPSTAN_PORT|=CAPSTAN_BIT
-#define CAPSTAN_OFF			CAPSTAN_PORT&=~CAPSTAN_BIT
+#define CAPSTAN_ON			CAPSTAN_PORT|=CAPSTAN_BIT	// Capstan motor enable
+#define CAPSTAN_OFF			CAPSTAN_PORT&=~CAPSTAN_BIT	// Capstan motor disable
 #define CAPSTAN_STATE		(CAPSTAN_SRC&CAPSTAN_BIT)
 
-// Service motor control.
+// Service motor control (alternative to capstan/solenoid control).
 #define SMTR_PORT			PORTB
 #define SMTR_DIR			DDRB
 #define SMTR_SRC			PINB
@@ -147,15 +147,15 @@ inline void HW_init(void)
 	// Turn off not used devices for power saving.
 	PWR_COMP_OFF; PWR_I2C_OFF;
 	// Turn off digital buffers on ADC inputs.
-	PWR_ADC_OPT;
-	
+	//PWR_ADC_OPT;
+
 	// Init SPI interface.
 	SPI_init_master();
-		
+
 	// Init USART interface.
 	UART_set_speed(UART_SPEED);
 	UART_enable();
-		
+
 	// Init ADC.
 	/*ADC_ENABLE;
 	ADC_CONFIG1;
@@ -167,7 +167,7 @@ inline void HW_init(void)
 	ADCT_START;
 	ADC_EN_INTR;*/
 	//TIMSK0|=(1<<OCIE0A);
-	
+
 	// Init power output control.
 	SOL_PORT&=~SOL_BIT;						// Disable pull-ups/set output to "0"
 	SOL_DIR|=SOL_BIT;						// Set pin as output
@@ -175,24 +175,24 @@ inline void HW_init(void)
 	CAPSTAN_DIR|=CAPSTAN_BIT;				// Set pin as output
 	SMTR_PORT&=~(SMTR_BIT1|SMTR_BIT2);		// Disable pull-ups/set output to "0"
 	SMTR_DIR|=(SMTR_BIT1|SMTR_BIT2);		// Set pins as outputs
-	
+
 	// Init record control.
 	REC_EN_PORT&=~(REC_EN_BIT);				// Disable pull-ups/set output to "0"
 	REC_EN_DIR|=REC_EN_BIT;					// Set pins as outputs
-	
+
 	// Init user-buttons.
 	BTN_DIR_1&=~(BTN_1|BTN_2|BTN_3|BTN_4|BTN_5|BTN_6);	// Set pins as inputs
 	BTN_PORT_1|=BTN_1|BTN_2|BTN_3|BTN_4|BTN_5|BTN_6;	// Turn on pull-ups
-		
+
 	SW_DIR&=~(SW_1|SW_2|SW_3|SW_4|SW_5);	// Set pins as inputs
 	SW_PORT|=SW_1|SW_2|SW_3|SW_4|SW_5;		// Turn on pull-ups
-	
+
 	// System timing.
 	SYST_CONFIG1;
 	SYST_CONFIG2;
 	SYST_RESET;
 	SYST_EN_INTR;
-	
+
 	// Timer for PWM output.
 	/*OCR1AL = 128;
 	TCNT1 = 0;
