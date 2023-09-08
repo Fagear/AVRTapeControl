@@ -20,6 +20,7 @@
 #define SPI_CS				(1<<2)
 #define SPI_INT				SPI_STC_vect	// SPI Serial Transfer Complete
 #define SPI_CONTROL			SPCR
+#define SPI_STATUS			SPSR
 #define SPI_DATA			SPDR
 #define SPI_TX_START		SPI_PORT&=~SPI_CS
 #define SPI_TX_END			SPI_PORT|=SPI_CS
@@ -39,8 +40,8 @@ inline void SPI_init_master(void)
 	SPI_DIR&=~SPI_MISO;
 	SPI_PORT|=SPI_CS;
 		
-	// SPI mode 0, clk/64 (125 kHz)
-	SPI_CONTROL=(1<<SPE)|(0<<DORD)|(1<<MSTR)|(0<<CPOL)|(0<<CPHA)|(1<<SPR1);
+	// SPI mode 0, clk/4 (250 kHz)
+	SPI_CONTROL=(1<<SPE)|(0<<DORD)|(1<<MSTR)|(0<<CPOL)|(0<<CPHA)|(0<<SPR1)|(0<<SPR0);
 }
 
 inline void SPI_int_enable(void)

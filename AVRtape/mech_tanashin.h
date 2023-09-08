@@ -32,9 +32,11 @@ enum
 	TTR_TANA_MODE_HALT,				// Permanent HALT due to an error
 };
 
-uint8_t mech_tanashin_user_to_transport(uint8_t in_mode);
-void mech_tanashin_state_machine(uint8_t in_features, uint8_t in_sws, uint8_t *taho, uint8_t *usr_mode, uint8_t *play_dir);
-uint8_t mech_tanashin_get_mode();
-uint8_t mech_tanashin_get_transition();
-uint8_t mech_tanashin_get_error();
-void mech_tanashin_UART_dump_mode(uint8_t in_mode);
+extern volatile const uint8_t ucaf_tanashin_mech[];
+
+uint8_t mech_tanashin_user_to_transport(uint8_t in_mode);				// Convert user mode to transport mode for Tanashin-clone mechanism
+void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine for Tanashin-clone tape mech
+uint8_t mech_tanashin_get_mode();										// Get user-level mode of the transport
+uint8_t mech_tanashin_get_transition();									// Get transition timer count
+uint8_t mech_tanashin_get_error();										// Get transport error
+void mech_tanashin_UART_dump_mode(uint8_t in_mode);						// Print Tanashin transport mode alias

@@ -28,18 +28,21 @@ uint8_t u8_user_mode=USR_MODE_STOP;			// User-requested mode
 uint8_t u8_mech_mode=USR_MODE_STOP;			// Current user-level transport mode
 uint8_t u8_last_play_dir=PB_DIR_FWD;		// Last playback direction
 uint8_t u8_transport_error=TTR_ERR_NONE;	// Last transport error
-uint8_t u8_features=TTR_REV_DEFAULT;		// Reverse playback settings
 uint8_t u8_record=0;						// Recording settings
+uint16_t u16_features=TTR_REV_DEFAULT;		// Feature settings
 uint16_t u16_audio_in_left=0;				// Left channel from the ADC input
 uint16_t u16_audio_in_right=0;				// Right channel from the ADC input
 uint16_t u16_audio_center_left=0;			// Left channel center level
 uint16_t u16_audio_center_right=0;			// Right channel center level
 
 uint8_t u8a_spi_buf[SPI_IDX_MAX];			// Data to send via SPI bus
+
+#ifdef UART_TERM
 char u8a_buf[48];							// Buffer for UART debug messages
+#endif /* UART_TERM */
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.07";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v0.08";			// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";				// Firmware description
@@ -61,31 +64,6 @@ ISR(TIMER0_COMPA_vect)
 	//REC_EN_OFF;
 }
 
-//-------------------------------------- ADC Conversion Complete Handler.
-ISR(ADC_INT/*, ISR_NAKED*/)
-{
-	//INTR_IN;
-	u8i_interrupts|=INTR_READ_ADC;
-
-	REC_EN_ON;
-	// Store mux channel.
-	u8i_last_adc_mux = ADC_INPUT_SW&ADC_MUX_MASK;
-	// Keep mux register without channel bits.
-	u8i_adc_new_mux = (ADC_INPUT_SW&(~ADC_MUX_MASK));
-	// Select next channel.
-	if(u8i_last_adc_mux==ADC_IN_LEFT_CH)
-	{
-		u8i_adc_new_mux += ADC_IN_RIGHT_CH;
-	}
-	// Apply new channel.
-	ADC_INPUT_SW = u8i_adc_new_mux;
-	// Store data.
-	u16i_last_adc_data = ADC_DATA_16;
-	REC_EN_OFF;
-
-	//INTR_OUT;
-}
-
 //-------------------------------------- SPI data transmittion finished.
 ISR(SPI_INT, ISR_NAKED)
 {
@@ -94,6 +72,7 @@ ISR(SPI_INT, ISR_NAKED)
 	INTR_OUT;
 }
 
+#ifdef UART_TERM
 //-------------------------------------- USART, Rx Complete
 ISR(UART_RX_INT, ISR_NAKED)
 {
@@ -113,6 +92,7 @@ ISR(UART_TX_INT, ISR_NAKED)
 	u8i_interrupts|=INTR_UART_SENT;
 	INTR_OUT;
 }
+#endif /* UART_TERM */
 
 //-------------------------------------- Startup init.
 inline void system_startup(void)
@@ -136,111 +116,6 @@ inline void system_startup(void)
 	WDT_PREP_ON;
 	WDT_SW_ON;
 	wdt_reset();
-}
-
-//-------------------------------------- Transforming audio values (centering wave and putting it into limits).
-uint16_t audio_centering(uint16_t in_audio, uint16_t in_center)
-{
-	// Run time: us @ 8 MHz
-	int16_t au_temp;
-	// Current data is for filtered channel.
-	au_temp = in_audio;
-	// Apply wave offset (full wave rectification).
-	if(au_temp<in_center)
-	{
-		// Invert negative wave value and shift center of wave to zero.
-		au_temp = in_center - au_temp;
-	}
-	else
-	{
-		// Shift center of wave to zero.
-		au_temp = au_temp - in_center;
-	}
-	// Put wave in limits.
-	if(au_temp<0) au_temp = 0;
-	return (uint16_t)au_temp;
-}
-
-//-------------------------------------- Read data from ADC.
-void ADC_read_result(void)
-{
-	uint8_t temp_ch;
-	uint16_t temp_data;
-
-	// Buffer data.
-	ADC_DIS_INTR;
-	temp_ch = u8i_last_adc_mux;
-	temp_data = u16i_last_adc_data;
-	ADC_EN_INTR;
-
-	if(temp_ch==ADC_IN_LEFT_CH)
-	{
-		u16_audio_in_left = temp_data;
-	}
-	else
-	{
-		u16_audio_in_right = temp_data;
-	}
-}
-
-//-------------------------------------- Find center of audio wave.
-void audio_input_calibrate(void)
-{
-	uint32_t tst_lch_avg=0;
-	uint32_t tst_rch_avg=0;
-	int16_t var_temp=8960;
-	// Collect 4096 audio samples.
-	while(var_temp>0)
-	{
-		// Disable interrupts globally.
-		cli();
-		// Buffer all interrupts.
-		u8_buf_interrupts|=u8i_interrupts;
-		// Clear all interrupt flags.
-		u8i_interrupts=0;
-		// Enable interrupts globally.
-		sei();
-		// Wait for ADC conversion.
-		if((u8_buf_interrupts&INTR_READ_ADC)!=0)
-		{
-			// Read data from analog inputs (channels are interleaved).
-			ADC_read_result();
-			// Start collection data after ~1s (discard startup transitions).
-			if(var_temp<4097)
-			{
-				if(u16i_last_adc_data==ADC_IN_LEFT_CH)
-				{
-					// Store sum of all samples.
-					tst_lch_avg += u16_audio_in_left;
-				}
-				else
-				{
-					// Store sum of all samples.
-					tst_rch_avg += u16_audio_in_right;
-				}
-			}
-			var_temp--;
-			// Reset watchdog timer.
-			wdt_reset();
-			// ADC conversion done.
-			u8_buf_interrupts&=~INTR_READ_ADC;
-		}
-	}
-	// Calculate center of waves (average of 4096/2 samples).
-	u16_audio_center_left = ((tst_lch_avg>>11)&(0x3FF));	// summ/2048
-	u16_audio_in_right = ((tst_rch_avg>>11)&(0x3FF));		// summ/2048
-
-	// Vin = ADC*5/1024.
-	// Correct value if too much offset (<0.12V or >4.88).
-	/*if((ui_audio_lf_center<25)||(ui_audio_lf_center>1000))
-	{
-		// Set default center of wave (~1.95V input).
-		ui_audio_lf_center=399;
-	}*/
-
-	// Re-center last audio to make it valid.
-	u16_audio_in_left = audio_centering(u16_audio_in_left, u16_audio_center_left);
-	u16_audio_in_right = audio_centering(u16_audio_in_right, u16_audio_center_right);
 }
 
 //-------------------------------------- Slow events dividers.
@@ -376,9 +251,17 @@ inline void switches_scan(void)
 			sw_released|=TTR_SW_TACHO;
 		}
 	}
-	/*sprintf(u8a_buf, "SWS|>0x%02x<|0x%02x|0x%02x\n\r",
-				sw_state, sw_pressed, sw_released);
-	UART_add_string(u8a_buf);*/
+#ifdef UART_TERM
+	if(((sw_pressed&(TTR_SW_TAPE_IN|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV))!=0)||
+		((sw_released&(TTR_SW_TAPE_IN|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV))!=0))
+	{
+		sprintf(u8a_buf, "SWS|TAPE:%01d|F_REC:%01d|R_REC:%01d\n\r",
+				((sw_state&TTR_SW_TAPE_IN)==0)?0:1,
+				((sw_state&TTR_SW_NOREC_FWD)==0)?0:1,
+				((sw_state&TTR_SW_NOREC_REV)==0)?0:1);
+		UART_add_string(u8a_buf);
+	}
+#endif /* UART_TERM */
 }
 
 uint8_t kbd_state = 0;			// Buttons states from the last [keys_simple_scan()] poll.
@@ -496,19 +379,19 @@ inline void keys_simple_scan(void)
 			kbd_released|=USR_BTN_RECORD;
 		}
 	}
-	/*sprintf(u8a_buf, "KBD|>0x%02x<|0x%02x|0x%02x\n\r",
-				kbd_state, kbd_pressed, kbd_released);
-	UART_add_string(u8a_buf);*/
+#ifdef UART_TERM
 	if(kbd_pressed!=0)
 	{
-		sprintf(u8a_buf, "KBD|REWN:%01d|STOP:%01d|FFWD:%01d|PLAY:%01d|REC:%01d\n\r",
+		sprintf(u8a_buf, "KBD|REWN:%01d|STOP:%01d|FFWD:%01d|PB_F:%01d|PB_R:%01d|REC:%01d\n\r",
 				((kbd_pressed&USR_BTN_REWIND)==0)?0:1,
 				((kbd_pressed&USR_BTN_STOP)==0)?0:1,
 				((kbd_pressed&USR_BTN_FFORWARD)==0)?0:1,
 				((kbd_pressed&USR_BTN_PLAY)==0)?0:1,
+				((kbd_pressed&USR_BTN_PLAY_REV)==0)?0:1,
 				((kbd_pressed&USR_BTN_RECORD)==0)?0:1);
 		UART_add_string(u8a_buf);
 	}
+#endif /* UART_TERM */
 }
 
 //-------------------------------------- Poll tachometer transitions.
@@ -531,43 +414,31 @@ inline void poll_tacho(void)
 //-------------------------------------- Update indication.
 inline void update_indicators(void)
 {
-	/*if((sw_state&TTR_SW_TAPE_IN)!=0)
+	// Tape presence indicator.
+	if((sw_state&TTR_SW_TAPE_IN)!=0)
 	{
-		LED_PORT|=LED_GREEN;
+		u8a_spi_buf[SPI_IDX_IND] |= IND_TAPE;
 	}
 	else
 	{
-		LED_PORT&=~LED_GREEN;
-	}*/
-
-	if((sw_state&TTR_SW_STOP)!=0)
-	{
-		u8a_spi_buf[SPI_IDX_IND] |= IND_STOP;
+		u8a_spi_buf[SPI_IDX_IND] &= ~IND_TAPE;
 	}
-	else
-	{
-		u8a_spi_buf[SPI_IDX_IND] &= ~IND_STOP;
-	}
-
-	if((sw_state&TTR_SW_TACHO)!=0)
-	{
-		u8a_spi_buf[SPI_IDX_IND] |= IND_TACHO;
-	}
-	else
-	{
-		u8a_spi_buf[SPI_IDX_IND] &= ~IND_TACHO;
-	}
+	// Check if transport is in an error.
 	if(u8_transport_error==TTR_ERR_NONE)
 	{
 		// No transport error, normal operation.
+		// Clear error indicator.
 		u8a_spi_buf[SPI_IDX_IND] &= ~IND_ERROR;
-
 		if(u8_mech_mode==USR_MODE_STOP)
 		{
+			// User-desirable mode: STOP.
+			// Check if transport reached target mode.
 			if(u8_transition_timer==0)
 			{
+				// Mode is reached, light up STOP indicator.
 				u8a_spi_buf[SPI_IDX_IND] |= IND_STOP;
 			}
+			// Mode transition in progress: make a fast blink.
 			else if((u8_tasks&TASK_FAST_BLINK)!=0)
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_STOP;
@@ -579,31 +450,55 @@ inline void update_indicators(void)
 		}
 		else
 		{
+			// Clear STOP indicator.
 			u8a_spi_buf[SPI_IDX_IND] &= ~IND_STOP;
 		}
-
-		// Playback forward indicator.
-		if(u8_mech_mode==USR_MODE_PLAY_FWD)
+		// Playback forward indicator/playback indicator.
+		if((u16_features&TTR_FEA_TWO_PLAYS)==0)
 		{
-			u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_FWD;
+			// Single playback button (clicking toggles direction) and Playback LED.
+			// Playback indicator.
+			if((u8_mech_mode==USR_MODE_PLAY_FWD)||(u8_mech_mode==USR_MODE_PLAY_REV))
+			{
+				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY;
+			}
+			else
+			{
+				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY;
+			}
+			// Playback direction indicator.
+			if(u8_mech_mode==USR_MODE_PLAY_REV)
+			{
+				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_DIR;
+			}
+			else
+			{
+				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY_DIR;
+			}
 		}
 		else
 		{
-			u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY_FWD;
+			// Two playback buttons (for each direction) and two Playback LEDs.
+			// Playback forward indicator.
+			if(u8_mech_mode==USR_MODE_PLAY_FWD)
+			{
+				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_FWD;
+			}
+			else
+			{
+				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY_FWD;
+			}
+			// Playback backwards indicator.
+			if(u8_mech_mode==USR_MODE_PLAY_REV)
+			{
+				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_REV;
+			}
+			else
+			{
+				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY_REV;
+			}
 		}
-
-		// Playback backwards indicator.
-		if(u8_mech_mode==USR_MODE_PLAY_REV)
-		{
-			u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_REV;
-		}
-		else
-		{
-			u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY_REV;
-		}
-
 		// Fast forward indicator.
-		// TODO: turn on playback as well
 		if(u8_mech_mode==USR_MODE_FWIND_FWD)
 		{
 			u8a_spi_buf[SPI_IDX_IND] |= IND_FFORWARD;
@@ -612,9 +507,7 @@ inline void update_indicators(void)
 		{
 			u8a_spi_buf[SPI_IDX_IND] &= ~IND_FFORWARD;
 		}
-
 		// Rewind indicator.
-		// TODO: turn on playback as well
 		if(u8_mech_mode==USR_MODE_FWIND_REV)
 		{
 			u8a_spi_buf[SPI_IDX_IND] |= IND_REWIND;
@@ -627,7 +520,8 @@ inline void update_indicators(void)
 	else
 	{
 		// Transport error detected.
-		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_TACHO|IND_PLAY_FWD|IND_PLAY_REV|IND_FFORWARD|IND_REWIND);
+		// Clear every other mode indicators.
+		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_STOP|IND_PLAY_FWD|IND_PLAY_REV|IND_FFORWARD|IND_REWIND);
 		if((u8_transport_error&TTR_ERR_BAD_DRIVE)!=0)
 		{
 			if((u8_tasks&TASK_FAST_BLINK)!=0)
@@ -656,7 +550,6 @@ inline void update_indicators(void)
 		}
 		
 	}
-
 	// Transmit indicator information via SPI.
 	SPI_TX_START;
 	SPI_send_byte(u8a_spi_buf[SPI_IDX_IND]);
@@ -668,50 +561,91 @@ void process_user(void)
 	uint8_t last_user_mode;
 	// Save mode.
 	last_user_mode = u8_user_mode;
+	// Button priority: from lowest to highest.
+	if((kbd_pressed&USR_BTN_REWIND)!=0)
+	{
+		kbd_pressed&=~USR_BTN_REWIND;
+		// Rewind.
+		u8_user_mode = USR_MODE_FWIND_REV;
+	}
 	if((kbd_pressed&USR_BTN_FFORWARD)!=0)
 	{
 		kbd_pressed&=~USR_BTN_FFORWARD;
 		// Fast forward.
 		u8_user_mode = USR_MODE_FWIND_FWD;
 	}
-	if((kbd_pressed&USR_BTN_PLAY)!=0)
+	if((kbd_pressed&USR_BTN_RECORD)!=0)
 	{
-		kbd_pressed&=~USR_BTN_PLAY;
-		// Check reverse settings.
-		if((u8_features&TTR_FEA_REV_ENABLE)==0)
+		kbd_pressed&=~USR_BTN_RECORD;
+		// TODO: add record button processing
+	}
+	
+	// Check reverse settings.
+	if((u16_features&TTR_FEA_REV_ENABLE)==0)
+	{
+		// Reverse operations are disabled.
+		if((kbd_pressed&USR_BTN_PLAY)!=0)
 		{
-			// Reverse operations are disabled.
+			kbd_pressed&=~USR_BTN_PLAY;
 			// Start/resume playback in forward direction.
 			u8_user_mode = USR_MODE_PLAY_FWD;
 		}
-		else
+		// Always clear second button flag.
+			kbd_pressed&=~USR_BTN_PLAY_REV;
+	}
+	else
+	{
+		// Check how many playback buttons are available.
+		if((u16_features&TTR_FEA_TWO_PLAYS)==0)
 		{
-			// Check if current mode is playback already and check current direction.
-			// TODO: maybe remove this and only check [u8_last_play_dir].
-			if(u8_user_mode==USR_MODE_PLAY_FWD)
+			// Single playback button (clicking toggles direction).
+			if((kbd_pressed&USR_BTN_PLAY)!=0)
 			{
-				// Swap tape side.
-				u8_user_mode = USR_MODE_PLAY_REV;
-			}
-			else if(u8_user_mode==USR_MODE_PLAY_REV)
-			{
-				// Swap tape side.
-				u8_user_mode = USR_MODE_PLAY_FWD;
-			}
-			else
-			{
-				// Current mode is not PLAY.
-				// Check last playback direction.
-				if(u8_last_play_dir==PB_DIR_FWD)
+				kbd_pressed&=~USR_BTN_PLAY;
+				// Check if current mode is playback already and check current direction.
+				if(u8_user_mode==USR_MODE_PLAY_FWD)
 				{
-					// Start/resume playback in forward direction.
+					// Swap tape side.
+					u8_user_mode = USR_MODE_PLAY_REV;
+				}
+				else if(u8_user_mode==USR_MODE_PLAY_REV)
+				{
+					// Swap tape side.
 					u8_user_mode = USR_MODE_PLAY_FWD;
 				}
 				else
 				{
-					// Start/resume playback in reverse direction.
-					u8_user_mode = USR_MODE_PLAY_REV;
+					// Current mode is not PLAY.
+					// Check last playback direction.
+					if(u8_last_play_dir==PB_DIR_FWD)
+					{
+						// Start/resume playback in forward direction.
+						u8_user_mode = USR_MODE_PLAY_FWD;
+					}
+					else
+					{
+						// Start/resume playback in reverse direction.
+						u8_user_mode = USR_MODE_PLAY_REV;
+					}
 				}
+			}
+			// Always clear second button flag.
+			kbd_pressed&=~USR_BTN_PLAY_REV;
+		}
+		else
+		{
+			// Two playback buttons (for each direction).
+			if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
+			{
+				kbd_pressed&=~USR_BTN_PLAY_REV;
+				// Start/resume playback in reverse direction.
+				u8_user_mode = USR_MODE_PLAY_REV;
+			}
+			if((kbd_pressed&USR_BTN_PLAY)!=0)
+			{
+				kbd_pressed&=~USR_BTN_PLAY;
+				// Start/resume playback in forward direction.
+				u8_user_mode = USR_MODE_PLAY_FWD;
 			}
 		}
 	}
@@ -721,17 +655,7 @@ void process_user(void)
 		// Stop the tape.
 		u8_user_mode = USR_MODE_STOP;
 	}
-	if((kbd_pressed&USR_BTN_RECORD)!=0)
-	{
-		kbd_pressed&=~USR_BTN_RECORD;
-		// TODO: add record button processing
-	}
-	if((kbd_pressed&USR_BTN_REWIND)!=0)
-	{
-		kbd_pressed&=~USR_BTN_REWIND;
-		// Rewind.
-		u8_user_mode = USR_MODE_FWIND_REV;
-	}
+#ifdef UART_TERM
 	if(last_user_mode!=u8_user_mode)
 	{
 		// Log user mode change.
@@ -739,6 +663,7 @@ void process_user(void)
 		UART_dump_user_mode(last_user_mode); UART_add_flash_string((uint8_t *)cch_arrow); UART_dump_user_mode(u8_user_mode);
 		UART_add_flash_string((uint8_t *)cch_endl);
 	}
+#endif /* UART_TERM */
 }
 
 void mech_log()
@@ -792,11 +717,13 @@ void mech_log()
 
 	if(u8_transition_timer>0)
 	{
+#ifdef UART_TERM
 		uint8_t sol_state;
 		sol_state = 0;
 		if(SOLENOID_STATE!=0) sol_state = 1;
 		sprintf(u8a_buf, "MODE|>%03u<|%02x|%01x\n\r", u8_transition_timer, sw_state, sol_state);
 		UART_add_string(u8a_buf);
+#endif /* UART_TERM */
 
 		if(u8_user_mode==USR_MODE_PLAY_FWD)
 		{
@@ -855,7 +782,9 @@ void mech_log()
 		}
 
 	}
+#ifdef UART_TERM
 	UART_dump_out();
+#endif /* UART_TERM */
 }
 
 //-------------------------------------- Main function.
@@ -866,6 +795,8 @@ int main(void)
 
 	// Default mech.
 	u8_mech_type = TTR_TYPE_CRP42602Y;
+	// Default feature set.
+	u16_features = TTR_REV_DEFAULT;
 
 	// Init modes to selected transport.
 	if(u8_mech_type==TTR_TYPE_CRP42602Y)
@@ -875,16 +806,25 @@ int main(void)
 	else if(u8_mech_type==TTR_TYPE_TANASHIN)
 	{
 		u8_user_mode = USR_MODE_STOP;
-		u8_features &= ~(TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_PB_LOOP);	// Disable reverse functions for non-reverse mech.
+		u16_features &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_PB_LOOP|TTR_FEA_TWO_PLAYS);	// Disable functions for non-reverse mech.
 	}
-
+#ifdef UART_TERM
 	// Output startup messages.
 	UART_add_flash_string((uint8_t *)cch_startup_1);
 	UART_add_flash_string((uint8_t *)ucaf_info); UART_add_flash_string((uint8_t *)cch_endl);
 	UART_add_flash_string((uint8_t *)ucaf_version); UART_add_string(" ["); UART_add_flash_string((uint8_t *)ucaf_compile_date); UART_add_string(", "); UART_add_flash_string((uint8_t *)ucaf_compile_time); UART_add_string("]"); UART_add_flash_string((uint8_t *)cch_endl);
 	UART_add_flash_string((uint8_t *)ucaf_author); UART_add_flash_string((uint8_t *)cch_endl); UART_dump_out();
-	UART_add_flash_string((uint8_t *)cch_endl); UART_dump_settings(u8_features); UART_add_flash_string((uint8_t *)cch_endl);
+	if(u8_mech_type==TTR_TYPE_CRP42602Y)
+	{
+		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_crp42602y_mech); UART_add_flash_string((uint8_t *)cch_endl);
+	}
+	else if(u8_mech_type==TTR_TYPE_TANASHIN)
+	{
+		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_tanashin_mech); UART_add_flash_string((uint8_t *)cch_endl);
+	}
+	UART_add_flash_string((uint8_t *)cch_endl); UART_dump_settings(u16_features); UART_add_flash_string((uint8_t *)cch_endl);
 	UART_dump_out();
+#endif /* UART_TERM */
 
 	// Start SPI comms.
 	SPI_int_enable();
@@ -937,7 +877,6 @@ int main(void)
 				u8_tasks^=TASK_SLOW_BLINK;
 				// Reset watchdog timer.
 				wdt_reset();
-				u8_buf_interrupts|=INTR_UART_SENT;
 			}
 			if((u8_tasks&TASK_10HZ)!=0)
 			{
@@ -948,6 +887,7 @@ int main(void)
 			}
 			if((u8_tasks&TASK_50HZ)!=0)
 			{
+				// ~105 us @ 1 MHz (without UART logging)
 				u8_tasks&=~TASK_50HZ;
 				// 50 Hz event, 20 ms period.
 				// Scan user keys.
@@ -956,24 +896,37 @@ int main(void)
 				poll_tacho();
 				// Process user input.
 				process_user();
+				// Update LEDs.
+				update_indicators();
+#ifdef UART_TERM
+				if(UART_get_sending_number()>0)
+				{
+					u8_buf_interrupts|=INTR_UART_SENT;
+				}
+#endif /* UART_TERM */
 			}
 			if((u8_tasks&TASK_500HZ)!=0)
 			{
+				uint8_t u8_old_dir;
+				// ~265 us @ 1 MHz (without UART logging)
 				u8_tasks&=~TASK_500HZ;
 				// 500 Hz event, 2 ms period.
 				// Scan switches and sensors.
 				switches_scan();
+				u8_old_dir = u8_last_play_dir;
 				// Update transport state machine and solenoid action.
 				if(u8_mech_type==TTR_TYPE_CRP42602Y)
 				{
-					mech_crp42602y_state_machine(u8_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+					// Processing for CRP42602Y mechanism.
+					mech_crp42602y_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
 					u8_mech_mode = mech_crp42602y_get_mode();
 					u8_transition_timer = mech_crp42602y_get_transition();
 					u8_transport_error = mech_crp42602y_get_error();
 				}
 				else if(u8_mech_type==TTR_TYPE_TANASHIN)
 				{
-					mech_tanashin_state_machine(u8_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+					// Processing for Tanashin-clone mechanism.
+					mech_tanashin_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
 					u8_mech_mode = mech_tanashin_get_mode();
 					u8_transition_timer = mech_tanashin_get_transition();
 					u8_transport_error = mech_tanashin_get_error();
@@ -982,10 +935,23 @@ int main(void)
 				{
 					mech_log();
 				}
-				// Update LEDs.
-				update_indicators();
+#ifdef UART_TERM
+				if(u8_old_dir!=u8_last_play_dir)
+				{
+					if(u8_last_play_dir==PB_DIR_FWD)
+					{
+						UART_add_flash_string((uint8_t *)cch_pb_dir); UART_add_flash_string((uint8_t *)cch_forward);
+					}
+					else
+					{
+						UART_add_flash_string((uint8_t *)cch_pb_dir); UART_add_flash_string((uint8_t *)cch_reverse);
+					}
+				}
+#endif /* UART_TERM */
+				// Clear switches events.
+				sw_pressed&=~(TTR_SW_TAPE_IN|TTR_SW_STOP|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV);
+				sw_released&=~(TTR_SW_TAPE_IN|TTR_SW_STOP|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV);
 			}
-
 			// Clear all timed flags.
 			//u8_tasks&=~(TASK_1HZ|TASK_2HZ|TASK_10HZ|TASK_50HZ|TASK_250HZ|TASK_500HZ);
 		}
@@ -995,6 +961,7 @@ int main(void)
 			// Finish SPI transmittion by releasing /CS.
 			SPI_TX_END;
 		}
+#ifdef UART_TERM
 		if((u8_buf_interrupts&INTR_UART_RECEIVED)!=0)
 		{
 			u8_buf_interrupts&=~INTR_UART_RECEIVED;
@@ -1007,6 +974,7 @@ int main(void)
 			// Send data from buffer to UART if any.
 			UART_send_byte();
 		}
+#endif /* UART_TERM */
     }
 }
 

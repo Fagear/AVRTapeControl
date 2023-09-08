@@ -13,7 +13,10 @@
 
 #include <avr/io.h>
 #include "drv_spi.h"
+
+#ifdef UART_TERM
 #include "drv_uart.h"
+#endif /* UART_TERM */
 
 // User-input buttons.
 #define BTN_PORT_1			PORTC
@@ -99,36 +102,10 @@
 #define SYST_CONFIG2		OCR2A=124					// Cycle clock: INclk/(1+124), 1000 Hz cycle
 #define SYST_EN_INTR		TIMSK2|=(1<<OCIE2A)			// Enable interrupt
 #define SYST_DIS_INTR		TIMSK2&=~(1<<OCIE2A)		// Disable interrupt
-#define SYST_START			TCCR2B|=(1<<CS22)			// Start timer with clk/64 clock (125 kHz)
+#define SYST_START			TCCR2B|=(1<<CS21)			// Start timer with clk/8 clock (125 kHz)
 #define SYST_STOP			TCCR2B&=~((1<<CS20)|(1<<CS21)|(1<<CS22))	// Stop timer
 #define SYST_DATA_8			TCNT2						// Count register
 #define SYST_RESET			SYST_DATA_8=0				// Reset count
-
-// ADC trigger timer setup.
-#define ADCT_CONFIG1		TCCR0A=(1<<WGM01)			// CTC mode (clear on compare with OCR)
-#define ADCT_CONFIG2		OCR0A=9						// Cycle clock: INclk/(1+9), 100 kHz (4x25 kHz) cycle
-#define ADCT_START			TCCR0B|=(1<<CS01)			// Start timer with clk/8 clock (1 MHz)
-#define ADCT_STOP			TCCR0B&=~((1<<CS02)|(1<<CS01)|(1<<CS00));	// Stop timer
-#define ADCT_DATA_8			TCNT0						// Count register
-#define ADCT_RESET			ADCT_DATA_8=0				// Reset count
-
-// ADC setup.
-#define ADC_INT				ADC_vect					// Interrupt vector alias
-#define ADC_INPUT_SW		ADMUX						// Input mixer register
-#define ADC_IN_LEFT_CH		0x00						// Channel bits for "left channel"
-#define ADC_IN_RIGHT_CH		0x01						// Channel bits for "right channel"
-#define ADC_MUX_MASK		((1<<MUX3)|(1<<MUX2)|(1<<MUX1)|(1<<MUX0))
-#define ADC_CONFIG1			ADC_INPUT_SW=(1<<REFS0)|(1<<REFS1)|(1<<ADLAR)|(ADC_IN_LEFT_CH)	// 1.1 V reference, left-adjusted
-#define ADC_CONFIG2			ADCSRA=(1<<ADATE)|(1<<ADPS1)						// Auto-trigger, interrupts enabled, clock: clk/4 (2 MHz) within safe 10-bit region (50...200 kHz)
-#define ADC_CONFIG3			ADCSRB=(1<<ADTS2)									// Auto-trigger source: Timer 0 Compare Match A
-#define ADC_ENABLE			ADCSRA|=(1<<ADEN)			// Enable ADC
-#define ADC_EN_INTR			ADCSRA|=(1<<ADIE)			// Enable interrupt
-#define ADC_DIS_INTR		ADCSRA&=~(1<<ADIE)			// Disable interrupt
-#define ADC_CLR_INTR		ADCSRA|=(1<<ADIF)			// Clear interrupt flag
-#define ADC_START			ADCSRA|=(1<<ADSC)			// Start conversion
-#define ADC_DATA_16			ADC							// 16-bit data register
-#define ADC_DATA_8H			ADCH						// 8-bit high-byte register
-#define ADC_DATA_8L			ADCL						// 8-bit low-byte register
 
 // Power consumption optimizations.
 #define PWR_COMP_OFF		ACSR|=(1<<ACD)
@@ -139,34 +116,20 @@
 #define PWR_I2C_OFF			PRR|=(1<<PRTWI)
 #define PWR_SPI_OFF			PRR|=(1<<PRSPI)
 #define PWR_UART_OFF		PRR|=(1<<PRUSART0)
-#define PWR_ADC_OPT			DIDR0|=(1<<ADC0D)|(1<<ADC1D)
 
 //-------------------------------------- IO initialization.
 inline void HW_init(void)
 {
 	// Turn off not used devices for power saving.
-	PWR_COMP_OFF; PWR_I2C_OFF;
-	// Turn off digital buffers on ADC inputs.
-	//PWR_ADC_OPT;
+	PWR_COMP_OFF; PWR_I2C_OFF; PWR_ADC_OFF;
 
 	// Init SPI interface.
 	SPI_init_master();
-
+#ifdef UART_TERM
 	// Init USART interface.
 	UART_set_speed(UART_SPEED);
 	UART_enable();
-
-	// Init ADC.
-	/*ADC_ENABLE;
-	ADC_CONFIG1;
-	ADC_CONFIG2;
-	ADC_CONFIG3;
-	ADCT_CONFIG1;
-	ADCT_CONFIG2;
-	ADCT_RESET;
-	ADCT_START;
-	ADC_EN_INTR;*/
-	//TIMSK0|=(1<<OCIE0A);
+#endif /* UART_TERM */
 
 	// Init power output control.
 	SOL_PORT&=~SOL_BIT;						// Disable pull-ups/set output to "0"
@@ -180,10 +143,10 @@ inline void HW_init(void)
 	REC_EN_PORT&=~(REC_EN_BIT);				// Disable pull-ups/set output to "0"
 	REC_EN_DIR|=REC_EN_BIT;					// Set pins as outputs
 
-	// Init user-buttons.
+	// Init user buttons inputs.
 	BTN_DIR_1&=~(BTN_1|BTN_2|BTN_3|BTN_4|BTN_5|BTN_6);	// Set pins as inputs
 	BTN_PORT_1|=BTN_1|BTN_2|BTN_3|BTN_4|BTN_5|BTN_6;	// Turn on pull-ups
-
+	// Init transport switches inputs.
 	SW_DIR&=~(SW_1|SW_2|SW_3|SW_4|SW_5);	// Set pins as inputs
 	SW_PORT|=SW_1|SW_2|SW_3|SW_4|SW_5;		// Turn on pull-ups
 
@@ -199,8 +162,6 @@ inline void HW_init(void)
 	TCCR1A = (1<<WGM10)|(1<<COM1A1)|(1<<COM1A0);	// Phase-correct 8-bit PWM
 	TCCR1B |= (1<<CS11);					// clk/8
 	*/
-	// Enable ADC interrupts.
-	//ADC_EN_INTR;
 }
 
 #endif /* DRV_IO_H_ */

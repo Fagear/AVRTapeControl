@@ -10,6 +10,7 @@
 #define COMMON_LOG_H_
 
 #include <stdio.h>
+#include "config.h"
 #include "drv_io.h"
 #include "strings.h"
 
@@ -22,10 +23,12 @@
 #define USR_BTN_RECORD		(1<<5)	// Record button
 
 // LED (?) indicators on the SPI 595 extender at [SPI_IDX_IND].
-#define IND_TACHO			(1<<0)	// Tachometer indicator
+#define IND_TAPE			(1<<0)	// Tape presence indicator (cassette illumination?)
 #define IND_STOP			(1<<1)	// Stop indicator
 #define IND_PLAY_FWD		(1<<2)  // Play in forward direction indicator
 #define IND_PLAY_REV		(1<<3)	// Play in reverse direction indicator
+#define IND_PLAY			(1<<2)	// Playback indicator
+#define IND_PLAY_DIR		(1<<3)	// Playback direction indicator
 #define IND_FFORWARD		(1<<4)	// Fast forward indicator
 #define IND_REWIND			(1<<5)	// Rewind indicator
 #define IND_REC				(1<<6)	// Record indicator
@@ -37,12 +40,6 @@
 #define TTR_SW_TACHO		(1<<2)	// Tape pickup tachometer
 #define TTR_SW_NOREC_FWD	(1<<3)	// Rec inhibit in forward direction
 #define TTR_SW_NOREC_REV	(1<<4)	// Rec inhibit in reverse direction
-
-enum
-{
-	FALSE,
-	TRUE
-};
 
 // State of tape playback direction.
 enum
@@ -80,14 +77,17 @@ enum
 // Flags for reverse playback settings for [u8_features].
 enum
 {
-	TTR_FEA_REV_ENABLE = 0x01,		// Disable all operations with reverse playback (does affect [TTR_FEA_PB_AUTOREV] and [TTR_FEA_PB_LOOP])
-	TTR_FEA_PB_AUTOREV = 0x02,		// Enable auto-reverse for forward playback (PB FWD -> PB REV -> STOP)
-	TTR_FEA_PB_LOOP = 0x04,			// Enable full auto-reverse (PB FWD -> PB REV -> PB FWD -> ...)
-	TTR_FEA_END_REW = 0x08			// Enable auto-rewind for fast forward (PB FWD/FW FWD -> FW REV -> STOP) (lower priority than [TTR_FEA_PB_LOOP])
+	TTR_FEA_STOP_TACHO = (1<<0),	// Enable checking tachometer in STOP mode (some CRP42602Y can do that)
+	TTR_FEA_REV_ENABLE = (1<<1),	// Enable all operations with reverse playback (does affect [TTR_FEA_PB_AUTOREV] and [TTR_FEA_PB_LOOP])
+	TTR_FEA_PB_AUTOREV = (1<<2),	// Enable auto-reverse for forward playback (PB FWD -> PB REV -> STOP)
+	TTR_FEA_PB_LOOP = (1<<3),		// Enable full auto-reverse (PB FWD -> PB REV -> PB FWD -> ...)
+	TTR_FEA_END_REW = (1<<4),		// Enable auto-rewind for fast forward (PB FWD/FW FWD -> FW REV -> STOP) (lower priority than [TTR_FEA_PB_LOOP])
+	TTR_FEA_TWO_PLAYS = (1<<5),		// Enable two PLAY buttons/LEDs (for each direction)
 };
-#define TTR_REV_DEFAULT		(TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_END_REW)		// Default reverse mode settings
+//#define TTR_REV_DEFAULT		(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_END_REW)		// Default reverse mode settings
+#define TTR_REV_DEFAULT		(TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_TWO_PLAYS)		// Default reverse mode settings
 
 void UART_dump_user_mode(uint8_t in_mode);
-void UART_dump_settings(uint8_t in_settings);
+void UART_dump_settings(uint16_t in_settings);
 
 #endif /* COMMON_LOG_H_ */

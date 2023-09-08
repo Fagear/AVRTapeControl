@@ -27,6 +27,7 @@
 // Speed defines (for use in [UART_set_speed()]).
 #define UART_BAUD_9600			(F_CPU/9600/8-1)
 #define UART_BAUD_57600			(F_CPU/57600/8-1)
+#define UART_BAUD_125k			(F_CPU/125000/8-1)
 #define UART_BAUD_250k			(F_CPU/250000/8-1)
 #define UART_BAUD_500k			(F_CPU/500000/8-1)
 #define UART_BAUD_1M			(F_CPU/1000000/8-1)

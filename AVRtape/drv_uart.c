@@ -1,6 +1,8 @@
 #include "drv_UART.h"
 #include <stdio.h>
 
+#ifdef UART_TERM
+
 static volatile uint16_t p_send=0;		// Points to first symbol for transmitting to UART (TX).
 static volatile uint16_t p_write=0;		// Points to next free cell inside TX buffer.
 static volatile uint16_t p_receive=0;	// Points to next free cell inside RX buffer from UART.
@@ -68,7 +70,7 @@ void add_str_to_out_buf(const uint8_t *input_ptr, const uint8_t data_mode)
 	}
 	// Correct offset.
 	length--;
-	#ifdef UART_EN_OVWR
+#ifdef UART_EN_OVWR
 	// Check available space.
 	if(length>available)
 	{
@@ -80,14 +82,14 @@ void add_str_to_out_buf(const uint8_t *input_ptr, const uint8_t data_mode)
 		c_send_arr[1]='\n';
 		c_send_arr[2]='\r';
 	}
-	#else
+#else
 	// Check available space.
 	if(length>available)
 	{
 		// Do not overfill the buffer.
 		return;
 	}
-	#endif /*UART_EN_OVWR*/
+#endif /*UART_EN_OVWR*/
 	// Fill the buffer.
 	while(i<length)
 	{
@@ -235,3 +237,5 @@ void UART_dump_out(void)
 		wdt_reset();
 	}
 }
+
+#endif /* UART_TERM */

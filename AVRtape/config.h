@@ -13,13 +13,16 @@
 #define CONFIG_H_
 
 // Put CRC table into ROM instead of RAM.
-//#define CRC8_ROM_DATA
+#define CRC8_ROM_DATA
+
+// Allow usage of UART terminal.
+#define UART_TERM
 
 #define SETTINGS_SIZE		11	// Number of bytes for full [settings_data] union.
 
 #define UART_IN_LEN			8		// UART receiving buffer length.
 #define UART_OUT_LEN		768		// UART transmitting buffer length.
-#define UART_SPEED			UART_BAUD_1M
+#define UART_SPEED			UART_BAUD_125k
 
 // Set target size of saving/restoring block for EEPROM driver.
 #define EEPROM_TARGET_SIZE	SETTINGS_SIZE

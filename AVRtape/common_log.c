@@ -10,6 +10,7 @@
 //-------------------------------------- Print user mode alias.
 void UART_dump_user_mode(uint8_t in_mode)
 {
+#ifdef UART_TERM
 	if(in_mode==USR_MODE_STOP)
 	{
 		UART_add_flash_string((uint8_t *)cch_mode_stop);
@@ -34,18 +35,12 @@ void UART_dump_user_mode(uint8_t in_mode)
 	{
 		UART_add_flash_string((uint8_t *)cch_mode_unknown);
 	}
+#endif /* UART_TERM */
 }
 
-void UART_dump_settings(uint8_t in_settings)
+void UART_dump_settings(uint16_t in_settings)
 {
-	if((in_settings&TTR_FEA_END_REW)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
-	}
+#ifdef UART_TERM
 	if((in_settings&TTR_FEA_REV_ENABLE)!=0)
 	{
 		UART_add_flash_string((uint8_t *)cch_set_reverse); UART_add_flash_string((uint8_t *)cch_enabled);
@@ -70,4 +65,29 @@ void UART_dump_settings(uint8_t in_settings)
 	{
 		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_loop); UART_add_flash_string((uint8_t *)cch_disabled);
 	}
+	if((in_settings&TTR_FEA_END_REW)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	if((in_settings&TTR_FEA_STOP_TACHO)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_tacho_stop); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_tacho_stop); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	if((in_settings&TTR_FEA_TWO_PLAYS)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_pb_btns); UART_add_flash_string((uint8_t *)cch_two);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_pb_btns); UART_add_flash_string((uint8_t *)cch_one);
+	}
+#endif /* UART_TERM */
 }
