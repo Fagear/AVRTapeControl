@@ -37,13 +37,6 @@
 #define	TASK_SLOW_BLINK		(1<<4)	// Indicator slow blink source
 #define	TASK_FAST_BLINK		(1<<5)	// Indicator fast blink source
 
-// Index of byte in SPI bus extenders for [u8a_spi_buf].
-enum
-{
-	SPI_IDX_IND,					// Regular transport mode indicators
-	SPI_IDX_MAX						// Index limit
-};
-
 uint16_t audio_centering(uint16_t in_audio, uint16_t in_center);
 void ADC_read_result(void);
 void audio_input_calibrate(void);

@@ -409,8 +409,21 @@ void mech_crp42602y_cyclogram()
 	{
 		// Pinch roller engaged, wait for pickup direction range.
 		u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_TAKEUP;
-		// Release solenoid entering "gray zone".
-		SOLENOID_OFF;
+		// Lookup next stage solenoid state.
+		if((SOLENOID_STATE!=0)&&
+			((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||
+			(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD)||
+			(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV)))
+		{
+			// Solenoid is already on from the last stage, next stage will also have it on.
+			// No need to jerk the solenoid, keep it on.
+			SOLENOID_ON;
+		}
+		else
+		{
+			// Release solenoid entering "gray zone".
+			SOLENOID_OFF;
+		}
 	}
 	else if(u8_inv_timer>=TIM_42602_DLY_PINCH_EN)
 	{
@@ -433,8 +446,20 @@ void mech_crp42602y_cyclogram()
 	{
 		// Pinch direction selection finished, wait for pinch range.
 		u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_PINCH;
-		// Keep solenoid off for the "gray zone".
-		SOLENOID_OFF;
+		// Lookup next stage solenoid state.
+		if((SOLENOID_STATE!=0)&&
+			((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||
+			(u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)))
+		{
+			// Solenoid is already on from the last stage, next stage will also have it on.
+			// No need to jerk the solenoid, keep it on.
+			SOLENOID_ON;
+		}
+		else
+		{
+			// Keep solenoid off for the "gray zone".
+			SOLENOID_OFF;
+		}
 	}
 	else if(u8_inv_timer>=TIM_42602_DLY_HEAD_DIR)
 	{
@@ -458,8 +483,21 @@ void mech_crp42602y_cyclogram()
 	{
 		// Mode change started, wait for pinch/head direction selection region.
 		u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_DIR;
-		// Release solenoid entering "gray zone".
-		SOLENOID_OFF;
+		// Lookup next stage solenoid state.
+		if((SOLENOID_STATE!=0)&&
+			((u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||
+			(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV)||
+			(u8_crp42602y_target_mode==TTR_42602_MODE_FW_REV_HD_REV)))
+		{
+			// Solenoid is already on from the last stage, next stage will also have it on.
+			// No need to jerk the solenoid, keep it on.
+			SOLENOID_ON;
+		}
+		else
+		{
+			// Release solenoid entering "gray zone".
+			SOLENOID_OFF;
+		}
 	}
 #ifdef UART_TERM
 	/*sprintf(u8a_buf, "TRS|>%03u<|%01u|%02u|%02u\n\r",
@@ -599,7 +637,8 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 #ifdef UART_TERM
 						UART_add_flash_string((uint8_t *)cch_active_stop); UART_add_flash_string((uint8_t *)cch_endl);
 						UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
-#endif /* UART_TERM */						// Mechanically mode didn't change from STOP, register an error.
+#endif /* UART_TERM */
+						// Mechanically mode didn't change from STOP, register an error.
 						u8_crp42602y_mode = TTR_42602_MODE_HALT;
 						u8_crp42602y_error += TTR_ERR_NO_CTRL;
 					}

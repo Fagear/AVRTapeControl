@@ -10,8 +10,8 @@
 #define TIM_42602_DLY_WAIT_TAKEUP	128		// 256 ms (end of pinch engage selection range, start of "gray zone")
 #define TIM_42602_DLY_TAKEUP_DIR	144		// 288 ms (start of takeup direction selection range)
 #define TIM_42602_DLY_WAIT_MODE		184		// 368 ms (end of takeup direction selection range, waiting for transition to active mode)
-#define TIM_42602_DELAY_RUN			200		// 400 ms (time for full transition STOP -> ACTIVE)
-#define TIM_42602_DELAY_STOP		200		// 400 ms (time for full transition ACTIVE -> STOP)
+#define TIM_42602_DELAY_RUN			210		// 420 ms (time for full transition STOP -> ACTIVE)
+#define TIM_42602_DELAY_STOP		160		// 320 ms (time for full transition ACTIVE -> STOP)
 
 // Maximum wait for next tacho tick for various modes, contained in [u8_tacho_timer].
 // Each tick = 20 ms real time.

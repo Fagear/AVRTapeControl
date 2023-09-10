@@ -22,18 +22,18 @@
 #define BTN_PORT_1			PORTC
 #define BTN_DIR_1			DDRC
 #define BTN_SRC_1			PINC
-#define BTN_1				(1<<0)
-#define BTN_2				(1<<1)
-#define BTN_3				(1<<2)
-#define BTN_4				(1<<3)
-#define BTN_5				(1<<4)
-#define BTN_6				(1<<5)
+#define BTN_1				(1<<5)
+#define BTN_2				(1<<4)
+#define BTN_3				(1<<3)
+#define BTN_4				(1<<2)
+#define BTN_5				(1<<1)
+#define BTN_6				(1<<0)
 #define BTN_REWD_STATE		(BTN_SRC_1&BTN_1)			// Rewind button
-#define BTN_STOP_STATE		(BTN_SRC_1&BTN_2)			// Stop button
-#define BTN_FFWD_STATE		(BTN_SRC_1&BTN_3)			// Fast forward button
-#define BTN_PLAY_STATE		(BTN_SRC_1&BTN_4)			// Play/reverse button
-#define BTN_PLAY_REV_STATE	(BTN_SRC_1&BTN_5)			// Play in reverse button
-#define BTN_REC_STATE		(BTN_SRC_1&BTN_6)			// Record button
+#define BTN_PLAY_REV_STATE	(BTN_SRC_1&BTN_2)			// Play in reverse button
+#define BTN_STOP_STATE		(BTN_SRC_1&BTN_3)			// Stop button
+#define BTN_REC_STATE		(BTN_SRC_1&BTN_4)			// Record button
+#define BTN_PLAY_STATE		(BTN_SRC_1&BTN_5)			// Play/reverse button
+#define BTN_FFWD_STATE		(BTN_SRC_1&BTN_6)			// Fast forward button
 
 // Sensors and switches.
 #define SW_PORT				PORTD
@@ -44,7 +44,7 @@
 #define SW_3				(1<<4)
 #define SW_4				(1<<5)
 #define SW_5				(1<<6)
-#define SW_TACHO_STATE		(SW_SRC&SW_1)				// Tape pickup tachometer
+#define SW_TACHO_STATE		(SW_SRC&SW_1)				// Tape movement tachometer
 #define SW_STOP_STATE		(SW_SRC&SW_2)				// Tape transport in mechanical "STOP" mode/"HOME" state
 #define SW_TAPE_IN_STATE	(SW_SRC&SW_3)				// Tape presence sensor
 #define SW_NOREC_FWD_STATE	(SW_SRC&SW_4)				// Record inhibit in forward direction

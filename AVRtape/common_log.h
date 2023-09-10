@@ -16,23 +16,23 @@
 
 // Flags for [kbd_state], [kbd_pressed] and [kbd_released].
 #define USR_BTN_REWIND		(1<<0)	// Rewind button
-#define USR_BTN_STOP		(1<<1)	// Stop button
-#define USR_BTN_FFORWARD	(1<<2)	// Fast forward button
-#define USR_BTN_PLAY		(1<<3)	// Play/reverse direction button
-#define USR_BTN_PLAY_REV	(1<<4)	// Play in reverse button
-#define USR_BTN_RECORD		(1<<5)	// Record button
+#define USR_BTN_PLAY_REV	(1<<1)	// Play in reverse button
+#define USR_BTN_STOP		(1<<2)	// Stop button
+#define USR_BTN_RECORD		(1<<3)	// Record button
+#define USR_BTN_PLAY		(1<<4)	// Play/reverse direction button
+#define USR_BTN_FFORWARD	(1<<5)	// Fast forward button
 
-// LED (?) indicators on the SPI 595 extender at [SPI_IDX_IND].
-#define IND_TAPE			(1<<0)	// Tape presence indicator (cassette illumination?)
-#define IND_STOP			(1<<1)	// Stop indicator
-#define IND_PLAY_FWD		(1<<2)  // Play in forward direction indicator
-#define IND_PLAY_REV		(1<<3)	// Play in reverse direction indicator
-#define IND_PLAY			(1<<2)	// Playback indicator
-#define IND_PLAY_DIR		(1<<3)	// Playback direction indicator
-#define IND_FFORWARD		(1<<4)	// Fast forward indicator
-#define IND_REWIND			(1<<5)	// Rewind indicator
-#define IND_REC				(1<<6)	// Record indicator
-#define IND_ERROR			(1<<7)	// Transport error indicator
+// Indicators on the SPI 595 extender at [SPI_IDX_IND].
+#define IND_ERROR			(1<<0)	// Transport error indicator
+#define IND_TAPE			(1<<1)	// Tape presence indicator (cassette illumination?)
+#define IND_STOP			(1<<2)	// Stop indicator
+#define IND_REC				(1<<3)	// Record indicator
+#define IND_REWIND			(1<<4)	// Rewind indicator
+#define IND_PLAY_REV		(1<<5)	// Play in reverse direction indicator
+#define IND_PLAY_DIR		(1<<5)	// Playback direction indicator
+#define IND_PLAY			(1<<6)	// Playback indicator
+#define IND_PLAY_FWD		(1<<6)  // Play in forward direction indicator
+#define IND_FFORWARD		(1<<7)	// Fast forward indicator
 
 // Flags for [sw_state], [sw_pressed] and [sw_released].
 #define TTR_SW_TAPE_IN		(1<<0)	// Tape is present
@@ -85,7 +85,14 @@ enum
 	TTR_FEA_TWO_PLAYS = (1<<5),		// Enable two PLAY buttons/LEDs (for each direction)
 };
 //#define TTR_REV_DEFAULT		(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_END_REW)		// Default reverse mode settings
-#define TTR_REV_DEFAULT		(TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_TWO_PLAYS)		// Default reverse mode settings
+#define TTR_REV_DEFAULT		(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_TWO_PLAYS)		// Default reverse mode settings
+
+// Index of byte in SPI bus extenders for [u8a_spi_buf].
+enum
+{
+	SPI_IDX_IND,					// Regular transport mode indicators
+	SPI_IDX_MAX						// Index limit
+};
 
 void UART_dump_user_mode(uint8_t in_mode);
 void UART_dump_settings(uint16_t in_settings);
