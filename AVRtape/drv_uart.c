@@ -23,8 +23,8 @@ void UART_enable(void)
 {
 	// Enable double speed (for more precise speed setting).
 	UART_CONF1_REG=UART_DBL_SPEED;
-	// Enable receiver and transmitter, interrupt on TX and RX complete.
-	UART_CONF2_REG=UART_RX_EN|UART_TX_EN|UART_RX_INT_EN|UART_TX_INT_EN;
+	// Enable transmitter, interrupt on TX complete.
+	UART_CONF2_REG=UART_TX_EN|UART_TX_INT_EN;
 	// Set frame format (async, no parity, 1 stop bit, 8 data bits).
 	UART_MODE_8N1;
 }

@@ -23,18 +23,23 @@ enum
 {
 	TTR_TANA_MODE_TO_INIT,			// Start-up state
 	TTR_TANA_MODE_INIT,				// Wait for mechanism to stabilize upon power-up
-	TTR_TANA_MODE_TO_STOP,			// Start transition to STOP
+	TTR_TANA_SUBMODE_TO_STOP,		// Start transition to STOP
 	TTR_TANA_MODE_STOP,				// Stable STOP state
 	TTR_TANA_MODE_PB_FWD,			// Stable PLAYBACK in forward direction
 	TTR_TANA_MODE_FW_FWD,			// Stable FAST WIND in forward direction
 	TTR_TANA_MODE_FW_REV,			// Stable FAST WIND in reverse direction
 	TTR_TANA_MODE_TO_HALT,			// Start transition to HALT
 	TTR_TANA_MODE_HALT,				// Permanent HALT due to an error
+	TTR_TANA_MODE_MAX				// Mode selector limit
 };
 
 extern volatile const uint8_t ucaf_tanashin_mech[];
 
 uint8_t mech_tanashin_user_to_transport(uint8_t in_mode);				// Convert user mode to transport mode for Tanashin-clone mechanism
+void mech_tanashin_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
+void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode);		// Start transition from current mode to target mode
+void mech_tanashin_user2target(uint8_t *usr_mode);						// Take in user desired mode and set new target mode
+void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);		// Control mechanism in static mode (not transitioning between modes)
 void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine for Tanashin-clone tape mech
 uint8_t mech_tanashin_get_mode();										// Get user-level mode of the transport
 uint8_t mech_tanashin_get_transition();									// Get transition timer count

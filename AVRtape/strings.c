@@ -3,7 +3,7 @@
  *
  * Created: 07.09.2023 17:29:20
  *  Author: kryukov
- */ 
+ */
 
 #include "strings.h"
 
@@ -78,5 +78,7 @@ const uint8_t cch_target2current2[] PROGMEM = ", req'd target mode: ";
 const uint8_t cch_user2target1[] PROGMEM = "Target TTR mode: ";
 const uint8_t cch_user2target2[] PROGMEM = ", req'd user mode: ";
 const uint8_t cch_mode_done[] PROGMEM = "Mode transition done: ";
+const uint8_t cch_capst_stop[] PROGMEM = "Capstan stopped in idle\n\r";
+const uint8_t cch_capst_start[] PROGMEM = "Capstan started\n\r";
 
 #endif /* UART_TERM */

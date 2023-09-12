@@ -50,6 +50,15 @@
 #define SW_NOREC_FWD_STATE	(SW_SRC&SW_4)				// Record inhibit in forward direction
 #define SW_NOREC_REV_STATE	(SW_SRC&SW_5)				// Record inhibit in reverse direction
 
+// Playback mute output control.
+#define MUTE_EN_PORT		PORTD
+#define MUTE_EN_DIR			DDRD
+#define MUTE_EN_SRC			PIND
+#define MUTE_EN_BIT			(1<<0)
+#define MUTE_EN_ON			MUTE_EN_PORT|=MUTE_EN_BIT	// Enable mute for playback amplifier in non-playback state
+#define MUTE_EN_OFF			MUTE_EN_PORT&=~MUTE_EN_BIT	// Disable mute for playback amplifier in non-playback state
+#define MUTE_EN_STATE		(MUTE_EN_SRC&MUTE_EN_BIT)
+
 // Record output control.
 #define REC_EN_PORT			PORTD
 #define REC_EN_DIR			DDRD
@@ -139,9 +148,13 @@ inline void HW_init(void)
 	SMTR_PORT&=~(SMTR_BIT1|SMTR_BIT2);		// Disable pull-ups/set output to "0"
 	SMTR_DIR|=(SMTR_BIT1|SMTR_BIT2);		// Set pins as outputs
 
+	// Init playback mute control.
+	MUTE_EN_ON;								// Set output to "1"
+	MUTE_EN_DIR|=MUTE_EN_BIT;				// Set pin as output
+	
 	// Init record control.
-	REC_EN_PORT&=~(REC_EN_BIT);				// Disable pull-ups/set output to "0"
-	REC_EN_DIR|=REC_EN_BIT;					// Set pins as outputs
+	REC_EN_OFF;								// Disable pull-ups/set output to "0"
+	REC_EN_DIR|=REC_EN_BIT;					// Set pin as output
 
 	// Init user buttons inputs.
 	BTN_DIR_1&=~(BTN_1|BTN_2|BTN_3|BTN_4|BTN_5|BTN_6);	// Set pins as inputs

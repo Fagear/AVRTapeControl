@@ -4,6 +4,7 @@ uint8_t u8_crp42602y_target_mode=TTR_42602_MODE_TO_INIT;// Target transport mode
 uint8_t u8_crp42602y_mode=TTR_42602_MODE_STOP;      	// Current tape transport mode (transitions to [u8_crp42602y_target_mode])
 uint8_t u8_crp42602y_error=TTR_ERR_NONE;				// Last transport error
 uint8_t u8_crp42602y_trans_timer=0;						// Solenoid holding timer
+uint16_t u16_crp42602y_idle_time=0;						// Timer for disabling capstan motor
 uint8_t u8_crp42602y_retries=0;							// Number of retries beforce transport halts
 
 #ifdef UART_TERM
@@ -13,7 +14,7 @@ char u8a_buf[48];										// Buffer for UART debug messages
 volatile const uint8_t ucaf_crp42602y_mech[] PROGMEM = "CRP42602Y mechanism";
 
 //-------------------------------------- Convert user mode to transport mode for CRP42602Y mechanism.
-uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode)
+uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir)
 {
 	if(in_mode==USR_MODE_PLAY_FWD)
 	{
@@ -25,11 +26,26 @@ uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode)
 	}
 	if(in_mode==USR_MODE_FWIND_FWD)
 	{
-		return TTR_42602_MODE_FW_FWD;
+		if((*play_dir)==PB_DIR_FWD)
+		{
+			return TTR_42602_MODE_FW_FWD;
+		}
+		else
+		{
+			return TTR_42602_MODE_FW_FWD_HD_REV;
+		}
 	}
 	if(in_mode==USR_MODE_FWIND_REV)
 	{
-		return TTR_42602_MODE_FW_REV;
+		if((*play_dir)==PB_DIR_FWD)
+		{
+			return TTR_42602_MODE_FW_REV;
+		}
+		else
+		{
+			return TTR_42602_MODE_FW_REV_HD_REV;
+		}
+		
 	}
 	return TTR_42602_MODE_STOP;
 }
@@ -37,14 +53,12 @@ uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode)
 //-------------------------------------- Transport operations are halted, keep mechanism in this state.
 void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode)
 {
-	// Reinforce halt mode.
+	// Set upper levels to the same mode.
 	u8_crp42602y_target_mode = TTR_42602_MODE_HALT;
 	// Clear user mode.
 	(*usr_mode) = USR_MODE_STOP;
-	// Keep transition timer reset.
+	// Keep timer reset, no mode transitions.
 	u8_crp42602y_trans_timer = 0;
-	// Keep solenoid inactive.
-	SOLENOID_OFF;
 	// Check mechanical stop sensor.
 	if((in_sws&TTR_SW_STOP)==0)
 	{
@@ -52,34 +66,62 @@ void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode)
 #ifdef UART_TERM
 		UART_add_flash_string((uint8_t *)cch_halt_active); UART_add_flash_string((uint8_t *)cch_force_stop);
 #endif /* UART_TERM */
+		// Start capstan motor.
+		CAPSTAN_ON;
 		// Force STOP if transport is not in STOP.
 		u8_crp42602y_trans_timer = TIM_42602_DELAY_STOP;
 		// Pull solenoid in to initiate mode change.
 		SOLENOID_ON;
 	}
+	else
+	{
+		// Keep solenoid inactive.
+		SOLENOID_OFF;
+		// Shut down capstan motor.
+		CAPSTAN_OFF;
+	}
+
 }
 
 //-------------------------------------- Start transition from current mode to target mode.
-void mech_crp42602y_target2mode(uint8_t *usr_mode)
+void mech_crp42602y_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 {
 #ifdef UART_TERM
 	UART_add_flash_string((uint8_t *)cch_target2current1); mech_crp42602y_UART_dump_mode(u8_crp42602y_mode);
 	UART_add_flash_string((uint8_t *)cch_target2current2); mech_crp42602y_UART_dump_mode(u8_crp42602y_target_mode); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
+	// For any mode transition capstan must be running.
+	// Check if capstan is running.
+	if(CAPSTAN_STATE==0)
+	{
+		// Capstan is stopped.
+#ifdef UART_TERM
+		UART_add_flash_string((uint8_t *)cch_capst_start);
+#endif /* UART_TERM */
+		// Override target mode to perform capstan spinup wait.
+		u8_crp42602y_target_mode = TTR_42602_MODE_TO_INIT;
+		// Reset tachometer timeout.
+		(*tacho) = 0;
+	}
+	// Reset idle timer.
+	u16_crp42602y_idle_time = 0;
 	if(u8_crp42602y_target_mode==TTR_42602_MODE_TO_INIT)
 	{
 		// Target mode: start-up delay.
 #ifdef UART_TERM
 		UART_add_flash_string((uint8_t *)cch_startup_delay);
 #endif /* UART_TERM */
-		// Set time for waiting.
+		// Set time for waiting for mechanism to stabilize.
 		u8_crp42602y_trans_timer = TIM_42602_DELAY_STOP;
 		// Put transport in init waiting mode.
 		u8_crp42602y_mode = TTR_42602_SUBMODE_INIT;
 		// Move target to STOP mode.
 		u8_crp42602y_target_mode = TTR_42602_MODE_STOP;
 		// Clear user mode.
-		(*usr_mode) = USR_MODE_STOP;
+		//(*usr_mode) = USR_MODE_STOP;
+		// Turn on capstan motor.
+		CAPSTAN_ON;
+		// Turn off solenoid, let mechanism stabilize.
 		SOLENOID_OFF;
 	}
 	else if(u8_crp42602y_target_mode==TTR_42602_MODE_STOP)
@@ -116,7 +158,7 @@ void mech_crp42602y_target2mode(uint8_t *usr_mode)
 }
 
 //-------------------------------------- Take in user desired mode and set new target mode.
-void mech_crp42602y_user2target(uint8_t *usr_mode)
+void mech_crp42602y_user2target(uint8_t *usr_mode, uint8_t *play_dir)
 {
 #ifdef UART_TERM
 	UART_add_flash_string((uint8_t *)cch_user2target1); mech_crp42602y_UART_dump_mode(u8_crp42602y_target_mode);
@@ -132,7 +174,7 @@ void mech_crp42602y_user2target(uint8_t *usr_mode)
 	else
 	{
 		// Mechanism is in STOP mode, simple: set target to what user wants.
-		u8_crp42602y_target_mode = mech_crp42602y_user_to_transport((*usr_mode));
+		u8_crp42602y_target_mode = mech_crp42602y_user_to_transport((*usr_mode), play_dir);
 	}
 }
 
@@ -142,6 +184,11 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 	if(u8_crp42602y_mode==TTR_42602_MODE_STOP)
 	{
 		// Transport supposed to be in STOP.
+		// Increase idle timer.
+		if(u16_crp42602y_idle_time<IDLE_42602_MAX)
+		{
+			u16_crp42602y_idle_time++;
+		}
 		// Check mechanism for mechanical STOP condition.
 		if((in_sws&TTR_SW_STOP)==0)
 		{
@@ -157,23 +204,35 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 		}
 		else if((in_features&TTR_FEA_STOP_TACHO)!=0)
 		{
-			// Checking tacho in STOP enabled.
-			if((*tacho)>TACHO_42602_STOP_DLY_MAX)
+			// Check if capstan motor is running.
+			if(CAPSTAN_STATE!=0)
 			{
-				// No signal from takeup tachometer for too long.
+				// Checking tacho in STOP enabled.
+				if((*tacho)>TACHO_42602_STOP_DLY_MAX)
+				{
+					// No signal from takeup tachometer for too long.
 #ifdef UART_TERM
-				UART_add_flash_string((uint8_t *)cch_stop_tacho); UART_add_flash_string((uint8_t *)cch_endl);
-				UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop1);
+					UART_add_flash_string((uint8_t *)cch_stop_tacho); UART_add_flash_string((uint8_t *)cch_endl);
+					UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop1);
 #endif /* UART_TERM */
-				// No motor drive or bad belts, register an error.
-				u8_crp42602y_mode = TTR_42602_MODE_HALT;
-				u8_crp42602y_error += TTR_ERR_BAD_DRIVE;
+					// No motor drive or bad belts, register an error.
+					u8_crp42602y_mode = TTR_42602_MODE_HALT;
+					u8_crp42602y_error += TTR_ERR_BAD_DRIVE;
+				}
 			}
+			else
+			{
+				// While capstan is stopped, reset tachometer timeout.
+				(*tacho) = 0;
+			}
+
 		}
 	}
 	else if((u8_crp42602y_mode==TTR_42602_MODE_PB_FWD)||(u8_crp42602y_mode==TTR_42602_MODE_PB_REV))
 	{
 		// Transport supposed to be in PLAYBACK.
+		// Reset idle timer.
+		u16_crp42602y_idle_time = 0;
 		if((*tacho)>TACHO_42602_PLAY_DLY_MAX)
 		{
 			// No signal from takeup tachometer for too long.
@@ -283,6 +342,8 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 	else if((u8_crp42602y_mode==TTR_42602_MODE_FW_FWD)||(u8_crp42602y_mode==TTR_42602_MODE_FW_REV)||(u8_crp42602y_mode==TTR_42602_MODE_FW_FWD_HD_REV)||(u8_crp42602y_mode==TTR_42602_MODE_FW_REV_HD_REV))
 	{
 		// Transport supposed to be in FAST WIND.
+		// Reset idle timer.
+		u16_crp42602y_idle_time = 0;
 		if((*tacho)>TACHO_42602_FWIND_DLY_MAX)
 		{
 			// No signal from takeup tachometer for too long.
@@ -302,7 +363,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 #endif /* UART_TERM */
 					// Set next playback in forward direction.
 					(*play_dir) = PB_DIR_FWD;
-					// STOP mode already queued. 
+					// STOP mode already queued.
 				}
 				else
 				{
@@ -446,20 +507,8 @@ void mech_crp42602y_cyclogram()
 	{
 		// Pinch direction selection finished, wait for pinch range.
 		u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_PINCH;
-		// Lookup next stage solenoid state.
-		if((SOLENOID_STATE!=0)&&
-			((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||
-			(u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)))
-		{
-			// Solenoid is already on from the last stage, next stage will also have it on.
-			// No need to jerk the solenoid, keep it on.
-			SOLENOID_ON;
-		}
-		else
-		{
-			// Keep solenoid off for the "gray zone".
-			SOLENOID_OFF;
-		}
+		// Keep solenoid off for the "gray zone".
+		SOLENOID_OFF;
 	}
 	else if(u8_inv_timer>=TIM_42602_DLY_HEAD_DIR)
 	{
@@ -539,7 +588,7 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 #endif /* UART_TERM */
 		// Clear user mode.
 		(*usr_mode) = USR_MODE_STOP;
-		if(u8_crp42602y_target_mode!=TTR_42602_MODE_HALT)
+		if((u8_crp42602y_target_mode!=TTR_42602_MODE_HALT)&&(u8_crp42602y_target_mode!=TTR_42602_MODE_TO_INIT))
 		{
 			// Tape is out, clear any active mode.
 			u8_crp42602y_target_mode = TTR_42602_MODE_STOP;
@@ -552,26 +601,58 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 		// Check if transport operations are halted.
 		if(u8_crp42602y_mode==TTR_42602_MODE_HALT)
 		{
-			// Transport control is halted.
+			// Transport control is halted due to an error, ignore any state transitions and user-requests.
 			mech_crp42602y_static_halt(in_sws, usr_mode);
 		}
 		// Check if current transport mode is the same as target transport mode.
 		else if(u8_crp42602y_target_mode!=u8_crp42602y_mode)
 		{
 			// Target transport mode is not the same as current transport mode (need to start transition to another mode).
-			mech_crp42602y_target2mode(usr_mode);
+			mech_crp42602y_target2mode(tacho, usr_mode);
 		}
-		// Check if user desired mode differs from transport target.
-		else if(mech_crp42602y_user_to_transport((*usr_mode))!=u8_crp42602y_target_mode)
+		// Transport is not in error and is in stable state (target mode reached),
+		// check if user requests another mode.
+		else if(mech_crp42602y_user_to_transport((*usr_mode), play_dir)!=u8_crp42602y_target_mode)
 		{
 			// Not in disabled state, target mode is reached.
 			// User wants another mode than current transport target is.
-			mech_crp42602y_user2target(usr_mode);
+			mech_crp42602y_user2target(usr_mode, play_dir);
 		}
 		else
 		{
 			// Transport is not due to transition through modes (u8_crp42602y_mode == u8_crp42602y_target_mode).
 			mech_crp42602y_static_mode(in_features, in_sws, tacho, usr_mode, play_dir);
+		}
+		// Check for idle timeout.
+		if((in_sws&TTR_SW_TAPE_IN)==0)
+		{
+			// No tape is present.
+			if(u16_crp42602y_idle_time>=IDLE_42602_NO_TAPE)
+			{
+#ifdef UART_TERM
+				if(CAPSTAN_STATE!=0)
+				{
+					UART_add_flash_string((uint8_t *)cch_capst_stop);
+				}
+#endif /* UART_TERM */
+				// Shutdown capstan motor.
+				CAPSTAN_OFF;
+			}
+		}
+		else
+		{
+			// Tape is loaded.
+			if(u16_crp42602y_idle_time>=IDLE_42602_TAPE_IN)
+			{
+#ifdef UART_TERM
+				if(CAPSTAN_STATE!=0)
+				{
+					UART_add_flash_string((uint8_t *)cch_capst_stop);
+				}
+#endif /* UART_TERM */
+				// Shutdown capstan motor.
+				CAPSTAN_OFF;
+			}
 		}
 	}
 	else
@@ -579,6 +660,8 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 		// Transport is performing mode transition.
 		// Count down mode transition timer.
 		u8_crp42602y_trans_timer--;
+		// Reset idle timer.
+		u16_crp42602y_idle_time = 0;
 		if(u8_crp42602y_mode==TTR_42602_MODE_HALT)
 		{
 			// Desired mode: recovery stop in halt mode.
@@ -685,7 +768,7 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 						// Reset retry count.
 						u8_crp42602y_retries = 0;
 					}
-					
+
 				}
 			}
 			// Reset tachometer timer.

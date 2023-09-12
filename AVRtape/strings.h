@@ -6,7 +6,7 @@
  * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
  * Description:		Strings for UART output
  *
- */ 
+ */
 
 #ifndef STRINGS_H_
 #define STRINGS_H_
@@ -86,6 +86,8 @@ extern const uint8_t cch_target2current2[];
 extern const uint8_t cch_user2target1[];
 extern const uint8_t cch_user2target2[];
 extern const uint8_t cch_mode_done[];
+extern const uint8_t cch_capst_stop[];
+extern const uint8_t cch_capst_start[];
 
 #endif /* UART_TERM */
 

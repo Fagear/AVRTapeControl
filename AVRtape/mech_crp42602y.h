@@ -19,6 +19,11 @@
 #define TACHO_42602_PLAY_DLY_MAX	50		// 1000 ms (~1 Hz)
 #define TACHO_42602_FWIND_DLY_MAX	10		// 120 ms (~8 Hz)
 
+// Maximum wait before capstan shutdown.
+#define IDLE_42602_NO_TAPE			7500	// 15 s
+#define IDLE_42602_TAPE_IN			60000	// 120 s
+#define IDLE_42602_MAX				IDLE_42602_TAPE_IN
+
 // Maximum number of tries to switch to STOP mode before HALT.
 #define REP_42602_MAX				4
 
@@ -50,11 +55,11 @@ enum
 
 extern volatile const uint8_t ucaf_crp42602y_mech[];
 
-uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode);				// Convert user mode to transport mode for CRP42602Y mechanism
+uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);	// Convert user mode to transport mode for CRP42602Y mechanism
 void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
-void mech_crp42602y_target2mode(uint8_t *usr_mode);						// Start transition from current mode to target mode
-void mech_crp42602y_user2target(uint8_t *usr_mode);						// Take in user desired mode and set new target mode
-void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);		// Control mechanism in static mode (not transitioning between modes)
+void mech_crp42602y_target2mode(uint8_t *tacho, uint8_t *usr_mode);		// Start transition from current mode to target mode
+void mech_crp42602y_user2target(uint8_t *usr_mode, uint8_t *play_dir);	// Take in user desired mode and set new target mode
+void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Control mechanism in static mode (not transitioning between modes)
 void mech_crp42602y_cyclogram();										// Transition through modes, timing solenoid
 void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine for CRP42602Y tape mech
 uint8_t mech_crp42602y_get_mode();										// Get user-level mode of the transport

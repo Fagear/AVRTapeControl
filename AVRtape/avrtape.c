@@ -35,6 +35,9 @@ uint16_t u16_audio_in_right=0;				// Right channel from the ADC input
 uint16_t u16_audio_center_left=0;			// Left channel center level
 uint16_t u16_audio_center_right=0;			// Right channel center level
 
+extern uint16_t u16_crp42602y_idle_time;
+extern uint8_t u8_crp42602y_mode;
+
 uint8_t u8a_spi_buf[SPI_IDX_MAX];			// Data to send via SPI bus
 
 #ifdef UART_TERM
@@ -93,6 +96,142 @@ ISR(UART_TX_INT, ISR_NAKED)
 	INTR_OUT;
 }
 #endif /* UART_TERM */
+
+//-------------------------------------- Re-configure system for fast CPU.
+inline void core_prepare_on(void)
+{
+	if((uc_mode_flags&MODE_CAR)!=0)
+	{
+		// Disable interrupts from logic inputs.
+		IO_L_PCINT_OFF;
+		// Disable interrupts from power inputs.
+		IO_P_PCINT_OFF;
+		IO_P_PCINT_DIS;
+		// Turn car modes off.
+		uc_car_mode=STG_CAR_OFF;
+		uc_car_inputs=0;
+	}
+	// Turn ADC on.
+	PRR&=~(ADC_OFF_BIT); ADC_SW_ON;
+	// Turn timer modules on.
+	PRR&=~(PWMT_OFF_BIT|SYST_OFF_BIT);
+	// Enable Timer0 overflow interrupt (5 kHz system timing).
+	SYST_INT_ON;
+	// Start system timing.
+	SYST_CLEAR; SYST_START;
+	// Enable Timer1 overflow interrupt (PWM timing).
+	PWMT_INT_ON;
+	// Start PWM timer.
+	PWMT_CLEAR; PWMT_START;
+}
+
+//-------------------------------------- Re-configure system for slow CPU.
+inline void core_prepare_off(void)
+{
+#ifdef RC_ENABLED
+	// Stop RC timer.
+	RC_reset();
+	// Clear interrupt flags.
+	TIFR2=TIFR2;
+#endif // RC_ENABLED
+	// Stop PWM.
+	LED_shutdown(); PWMT_STOP;
+	// Disable Timer1 interrupts.
+	PWMT_INT_OFF;
+	// Stop system timing.
+	SYST_STOP;
+	// Disable Timer0 interrupts.
+	SYST_INT_OFF;
+	// Clear interrupt flags.
+	TIFR0=TIFR0; TIFR1=TIFR1;
+	// Turn unused modules off.
+	PRR|=PWMT_OFF_BIT|SYST_OFF_BIT;
+	// Turn ADC off.
+	ADC_SW_OFF; PRR&=~(ADC_OFF_BIT);
+	if((uc_mode_flags&MODE_CAR)!=0)
+	{
+		// Enable interrupts from logic inputs (acting as wakeup sources).
+		IO_L_PCINT_ON;
+		// Enable interrupts from power inputs (acting as wakeup sources).
+		IO_P_PCINT_EN;
+		IO_P_PCINT_ON;
+	}
+	// Clear counters.
+	uc_div_maxfadeout=0;
+	uc_div_noaudio=0;
+	ui_pwm_counter=0;
+	ui_pwm1_in=0;
+	ui_pwm2_in=0;
+	ui_pwm3_in=0;
+	ui_pwm1_comp=ui_pwm1_in;
+	ui_pwm2_comp=ui_pwm2_in;
+	ui_pwm3_comp=ui_pwm3_in;
+	uc_work_stage=STG_FADE_1ST;
+	uc_fade_step=0;
+	prepare_mode_flash();
+	prepare_mode_strobe();
+}
+
+//-------------------------------------- Slow CPU down.
+static inline void CPU_power_down(void)
+{
+	cli();
+	// Check if not already in slow mode.
+	if((CLKPR&(1<<CLKPS2))==0)
+	{
+		// Re-configure system.
+		core_prepare_off();
+		// Prepare to change system clock.
+		CLKPR=0x80;
+		// Change clk to 16MHz/128=125kHz.
+		CLKPR=(1<<CLKPS2)|(1<<CLKPS1)|(1<<CLKPS0);
+		// Wait for clock change.
+		NOP;
+	}
+	wdt_reset();
+	// Re-configure WDT into interrupt mode.
+	// WDIE will automatically clear after first int call.
+	//WDTCSR|=(1<<WDIE);
+	// Turn off WDT for no reset during IDLE.
+	wdt_disable();
+	// Set "sleep" flag.
+	uc_mode_flags|=MODE_SLEEP;
+	// Enter IDLE mode.
+	set_sleep_mode(SLEEP_MODE_IDLE);
+	sleep_enable();
+	sei();
+	sleep_cpu();
+	// Wake up.
+	sleep_disable();
+	// Re-configure WDT.
+	cli();
+	wdt_reset();
+	// Enable watchdog, prepare for prescaler change.
+	WDTCSR|=(1<<WDCE)|(1<<WDE);
+	// Set new timeout (4s).
+	WDTCSR=(0<<WDIE)|(1<<WDE)|(1<<WDP3);
+	sei();
+	//WDTCSR&=~(1<<WDIE);
+	// IR or logic inputs activity: wake up from sleep (if was).
+	uc_tasks|=TASK_PWRUP;
+}
+
+//-------------------------------------- Set fast CPU clock (must perform with no interrupts).
+static void CPU_power_up(void)
+{
+	// Re-configure system.
+	core_prepare_on();
+	// Prepare to change system clock.
+	CLKPR=0x80;
+	// Change clk to 16MHz/1=16MHz.
+	CLKPR=(0<<CLKPS3)|(0<<CLKPS2)|(0<<CLKPS1)|(0<<CLKPS0);
+	// Wait for clock change.
+	NOP;
+	// Clear "sleep" flag.
+	uc_mode_flags&=~MODE_SLEEP;
+	// Deny entering sleep for additional 0.25s.
+	if(uc_sleep_disabled<200) uc_sleep_disabled+=15;
+}
 
 //-------------------------------------- Startup init.
 inline void system_startup(void)
@@ -877,6 +1016,10 @@ int main(void)
 				u8_tasks^=TASK_SLOW_BLINK;
 				// Reset watchdog timer.
 				wdt_reset();
+#ifdef UART_TERM				
+				//sprintf(u8a_buf, "SLEEP|%05u|%03u\n\r", u16_crp42602y_idle_time, u8_tacho_timer);
+				//UART_add_string(u8a_buf);
+#endif /* UART_TERM */				
 			}
 			if((u8_tasks&TASK_10HZ)!=0)
 			{
@@ -884,6 +1027,10 @@ int main(void)
 				// 10 Hz event, 100 ms period.
 				// Toggle fast blink flag.
 				u8_tasks^=TASK_FAST_BLINK;
+#ifdef UART_TERM				
+				//sprintf(u8a_buf, "SLEEP|%02u|%05u|%03u\n\r", u8_crp42602y_mode, u16_crp42602y_idle_time, u8_tacho_timer);
+				//UART_add_string(u8a_buf);
+#endif /* UART_TERM */
 			}
 			if((u8_tasks&TASK_50HZ)!=0)
 			{
