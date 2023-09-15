@@ -29,6 +29,8 @@ const uint8_t cch_mode_tu_dir_sel[] PROGMEM = "TAKEUP_DIR_SEL";
 const uint8_t cch_mode_wait_run[] PROGMEM = "WAIT_RUN";
 const uint8_t cch_mode_pb_fwd[] PROGMEM = "PB_FWD";
 const uint8_t cch_mode_pb_rev[] PROGMEM = "PB_REV";
+const uint8_t cch_mode_rc_fwd[] PROGMEM = "RC_FWD";
+const uint8_t cch_mode_rc_rev[] PROGMEM = "RC_REV";
 const uint8_t cch_mode_fw_fwd[] PROGMEM = "FW_FWD";
 const uint8_t cch_mode_fw_rev[] PROGMEM = "FW_REV";
 const uint8_t cch_mode_fw_fwd_hd_rev[] PROGMEM = "FW_FWD_HD_REV";
@@ -78,7 +80,10 @@ const uint8_t cch_target2current2[] PROGMEM = ", req'd target mode: ";
 const uint8_t cch_user2target1[] PROGMEM = "Target TTR mode: ";
 const uint8_t cch_user2target2[] PROGMEM = ", req'd user mode: ";
 const uint8_t cch_mode_done[] PROGMEM = "Mode transition done: ";
+const uint8_t cch_no_record[] PROGMEM = "Record is prohibited! Reverted to playback.\n\r";
 const uint8_t cch_capst_stop[] PROGMEM = "Capstan stopped in idle\n\r";
 const uint8_t cch_capst_start[] PROGMEM = "Capstan started\n\r";
+const uint8_t cch_sleep_in[] PROGMEM = "Going to sleep...\n\r";
+const uint8_t cch_sleep_out[] PROGMEM = "Waking up!\n\r";
 
 #endif /* UART_TERM */

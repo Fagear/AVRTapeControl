@@ -6,7 +6,7 @@
  * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
  * Description:		Configuration for drivers
  *
- */ 
+ */
 
 
 #ifndef CONFIG_H_
@@ -15,7 +15,7 @@
 // Put CRC table into ROM instead of RAM.
 #define CRC8_ROM_DATA
 
-// Allow usage of UART terminal.
+// Enable UART debug output (slows down execution and takes up ROM and RAM).
 #define UART_TERM
 
 #define SETTINGS_SIZE		11	// Number of bytes for full [settings_data] union.

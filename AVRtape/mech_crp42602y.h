@@ -45,19 +45,21 @@ enum
 	TTR_42602_SUBMODE_WAIT_RUN,		// 12 Waiting for mechanism to stabilize
 	TTR_42602_MODE_PB_FWD,			// 13 Stable PLAYBACK in forward direction
 	TTR_42602_MODE_PB_REV,			// 14 Stable PLAYBACK in reverse direction
-	TTR_42602_MODE_FW_FWD,			// 15 Stable FAST WIND in forward direction, head/pinch in forward direction
-	TTR_42602_MODE_FW_REV,			// 16 Stable FAST WIND in reverse direction, head/pinch in forward direction
-	TTR_42602_MODE_FW_FWD_HD_REV,	// 17 Stable FAST WIND in forward direction, head/pinch in reverse direction
-	TTR_42602_MODE_FW_REV_HD_REV,	// 18 Stable FAST WIND in reverse direction, head/pinch in reverse direction
-	TTR_42602_MODE_HALT,			// 19 Permanent halt due to an error
-	TTR_42602_MODE_MAX				// 20 Mode selector limit
+	TTR_42602_MODE_RC_FWD,			// 15 Stable RECORD in forward direction
+	TTR_42602_MODE_RC_REV,			// 16 Stable RECORD in reverse direction
+	TTR_42602_MODE_FW_FWD,			// 17 Stable FAST WIND in forward direction, head/pinch in forward direction
+	TTR_42602_MODE_FW_REV,			// 18 Stable FAST WIND in reverse direction, head/pinch in forward direction
+	TTR_42602_MODE_FW_FWD_HD_REV,	// 19 Stable FAST WIND in forward direction, head/pinch in reverse direction
+	TTR_42602_MODE_FW_REV_HD_REV,	// 20 Stable FAST WIND in reverse direction, head/pinch in reverse direction
+	TTR_42602_MODE_HALT,			// 21 Permanent halt due to an error
+	TTR_42602_MODE_MAX				// 22 Mode selector limit
 };
 
 extern volatile const uint8_t ucaf_crp42602y_mech[];
 
 uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);	// Convert user mode to transport mode for CRP42602Y mechanism
 void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
-void mech_crp42602y_target2mode(uint8_t *tacho, uint8_t *usr_mode);		// Start transition from current mode to target mode
+void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);		// Start transition from current mode to target mode
 void mech_crp42602y_user2target(uint8_t *usr_mode, uint8_t *play_dir);	// Take in user desired mode and set new target mode
 void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Control mechanism in static mode (not transitioning between modes)
 void mech_crp42602y_cyclogram();										// Transition through modes, timing solenoid

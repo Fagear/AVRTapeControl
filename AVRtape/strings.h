@@ -37,6 +37,8 @@ extern const uint8_t cch_mode_tu_dir_sel[];
 extern const uint8_t cch_mode_wait_run[];
 extern const uint8_t cch_mode_pb_fwd[];
 extern const uint8_t cch_mode_pb_rev[];
+extern const uint8_t cch_mode_rc_fwd[];
+extern const uint8_t cch_mode_rc_rev[];
 extern const uint8_t cch_mode_fw_fwd[];
 extern const uint8_t cch_mode_fw_rev[];
 extern const uint8_t cch_mode_fw_fwd_hd_rev[];
@@ -86,8 +88,11 @@ extern const uint8_t cch_target2current2[];
 extern const uint8_t cch_user2target1[];
 extern const uint8_t cch_user2target2[];
 extern const uint8_t cch_mode_done[];
+extern const uint8_t cch_no_record[];
 extern const uint8_t cch_capst_stop[];
 extern const uint8_t cch_capst_start[];
+extern const uint8_t cch_sleep_in[];
+extern const uint8_t cch_sleep_out[];
 
 #endif /* UART_TERM */
 

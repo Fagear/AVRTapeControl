@@ -20,20 +20,16 @@ uint8_t u8_500hz_cnt=0;						// Divider for 500 Hz
 uint8_t u8_50hz_cnt=0;						// Divider for 50 Hz
 uint8_t u8_10hz_cnt=0;						// Divider for 10 Hz
 uint8_t u8_2hz_cnt=0;						// Divider for 2 Hz
-uint8_t u8_mech_type=0;						// Selected type of mechanism
+uint8_t u8_mech_type=TTR_TYPE_CRP42602Y;	// Selected type of mechanism
 uint8_t u8_transition_timer=0;				// Solenoid holding timer
 uint8_t u8_tacho_timer=0;					// Time from last tachometer signal
+uint8_t u8_sleep_inh_timer=0;				// Time before next sleep is allowed
 uint8_t u8_dbg_timer=0;						// Debug timer
 uint8_t u8_user_mode=USR_MODE_STOP;			// User-requested mode
 uint8_t u8_mech_mode=USR_MODE_STOP;			// Current user-level transport mode
 uint8_t u8_last_play_dir=PB_DIR_FWD;		// Last playback direction
 uint8_t u8_transport_error=TTR_ERR_NONE;	// Last transport error
-uint8_t u8_record=0;						// Recording settings
 uint16_t u16_features=TTR_REV_DEFAULT;		// Feature settings
-uint16_t u16_audio_in_left=0;				// Left channel from the ADC input
-uint16_t u16_audio_in_right=0;				// Right channel from the ADC input
-uint16_t u16_audio_center_left=0;			// Left channel center level
-uint16_t u16_audio_center_right=0;			// Right channel center level
 
 extern uint16_t u16_crp42602y_idle_time;
 extern uint8_t u8_crp42602y_mode;
@@ -45,7 +41,7 @@ char u8a_buf[48];							// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.08";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v0.09";			// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";				// Firmware description
@@ -60,11 +56,20 @@ ISR(SYST_INT, ISR_NAKED)
 	INTR_OUT;
 }
 
-ISR(TIMER0_COMPA_vect)
+//-------------------------------------- Pin Change Interrupt Request 1
+ISR(BTN_INT, ISR_NAKED)
 {
-	//REC_EN_ON;
-	NOP; NOP; NOP; NOP; NOP;
-	//REC_EN_OFF;
+	// Used only to wakeup MCU.
+	NOP;
+	INTR_OUT_S;
+}
+
+//-------------------------------------- Pin Change Interrupt Request 2
+ISR(SW_INT, ISR_NAKED)
+{
+	// Used only to wakeup MCU.
+	NOP;
+	INTR_OUT_S;
 }
 
 //-------------------------------------- SPI data transmittion finished.
@@ -76,18 +81,6 @@ ISR(SPI_INT, ISR_NAKED)
 }
 
 #ifdef UART_TERM
-//-------------------------------------- USART, Rx Complete
-ISR(UART_RX_INT, ISR_NAKED)
-{
-	//INTR_UART_IN;
-	// Receive byte.
-	//UART_receive_byte();
-	//INTR_UART_OUT;
-	INTR_IN;
-	u8i_interrupts|=INTR_UART_RECEIVED;
-	INTR_OUT;
-}
-
 //-------------------------------------- USART, Tx Complete
 ISR(UART_TX_INT, ISR_NAKED)
 {
@@ -98,139 +91,71 @@ ISR(UART_TX_INT, ISR_NAKED)
 #endif /* UART_TERM */
 
 //-------------------------------------- Re-configure system for fast CPU.
-inline void core_prepare_on(void)
+inline void core_prepare_on()
 {
-	if((uc_mode_flags&MODE_CAR)!=0)
-	{
-		// Disable interrupts from logic inputs.
-		IO_L_PCINT_OFF;
-		// Disable interrupts from power inputs.
-		IO_P_PCINT_OFF;
-		IO_P_PCINT_DIS;
-		// Turn car modes off.
-		uc_car_mode=STG_CAR_OFF;
-		uc_car_inputs=0;
-	}
-	// Turn ADC on.
-	PRR&=~(ADC_OFF_BIT); ADC_SW_ON;
-	// Turn timer modules on.
-	PRR&=~(PWMT_OFF_BIT|SYST_OFF_BIT);
-	// Enable Timer0 overflow interrupt (5 kHz system timing).
-	SYST_INT_ON;
+	// Disable interrupts from inputs
+	BTN_DIS_INTR2; SW_DIS_INTR2;
+#ifdef UART_TERM
+	UART_add_flash_string((uint8_t *)cch_sleep_out);
+	UART_dump_out();
+#endif /* UART_TERM */
+	// Reset sleep inhibition timer.
+	u8_sleep_inh_timer = 0;
 	// Start system timing.
-	SYST_CLEAR; SYST_START;
-	// Enable Timer1 overflow interrupt (PWM timing).
-	PWMT_INT_ON;
-	// Start PWM timer.
-	PWMT_CLEAR; PWMT_START;
+	SYST_RESET; SYST_START;
 }
 
 //-------------------------------------- Re-configure system for slow CPU.
-inline void core_prepare_off(void)
+inline void core_prepare_off()
 {
-#ifdef RC_ENABLED
-	// Stop RC timer.
-	RC_reset();
-	// Clear interrupt flags.
-	TIFR2=TIFR2;
-#endif // RC_ENABLED
-	// Stop PWM.
-	LED_shutdown(); PWMT_STOP;
-	// Disable Timer1 interrupts.
-	PWMT_INT_OFF;
 	// Stop system timing.
 	SYST_STOP;
-	// Disable Timer0 interrupts.
-	SYST_INT_OFF;
-	// Clear interrupt flags.
-	TIFR0=TIFR0; TIFR1=TIFR1;
-	// Turn unused modules off.
-	PRR|=PWMT_OFF_BIT|SYST_OFF_BIT;
-	// Turn ADC off.
-	ADC_SW_OFF; PRR&=~(ADC_OFF_BIT);
-	if((uc_mode_flags&MODE_CAR)!=0)
-	{
-		// Enable interrupts from logic inputs (acting as wakeup sources).
-		IO_L_PCINT_ON;
-		// Enable interrupts from power inputs (acting as wakeup sources).
-		IO_P_PCINT_EN;
-		IO_P_PCINT_ON;
-	}
 	// Clear counters.
-	uc_div_maxfadeout=0;
-	uc_div_noaudio=0;
-	ui_pwm_counter=0;
-	ui_pwm1_in=0;
-	ui_pwm2_in=0;
-	ui_pwm3_in=0;
-	ui_pwm1_comp=ui_pwm1_in;
-	ui_pwm2_comp=ui_pwm2_in;
-	ui_pwm3_comp=ui_pwm3_in;
-	uc_work_stage=STG_FADE_1ST;
-	uc_fade_step=0;
-	prepare_mode_flash();
-	prepare_mode_strobe();
+	u8i_interrupts=0;
+	u8_buf_interrupts=0;
+	u8_tasks=0;
+	u8_500hz_cnt=0;
+	u8_50hz_cnt=0;
+	u8_10hz_cnt=0;
+	u8_2hz_cnt=0;
+#ifdef UART_TERM
+	UART_add_flash_string((uint8_t *)cch_sleep_in);
+	UART_dump_out();
+#endif /* UART_TERM */
+	// Clear interrupt flags (write "1" to wherever "1" is).
+	PCIFR = PCIFR;
+	// Enable interrupts from inputs (acting as wakeup sources).
+	BTN_EN_INTR2; SW_EN_INTR2;
 }
 
-//-------------------------------------- Slow CPU down.
-static inline void CPU_power_down(void)
+//-------------------------------------- MCU sleep procedure.
+static inline void CPU_power_down()
 {
+	core_prepare_off();
 	cli();
-	// Check if not already in slow mode.
-	if((CLKPR&(1<<CLKPS2))==0)
-	{
-		// Re-configure system.
-		core_prepare_off();
-		// Prepare to change system clock.
-		CLKPR=0x80;
-		// Change clk to 16MHz/128=125kHz.
-		CLKPR=(1<<CLKPS2)|(1<<CLKPS1)|(1<<CLKPS0);
-		// Wait for clock change.
-		NOP;
-	}
+	// Reset watchdog timer.
 	wdt_reset();
-	// Re-configure WDT into interrupt mode.
-	// WDIE will automatically clear after first int call.
-	//WDTCSR|=(1<<WDIE);
 	// Turn off WDT for no reset during IDLE.
-	wdt_disable();
-	// Set "sleep" flag.
-	uc_mode_flags|=MODE_SLEEP;
+	WDT_RESET_DIS;
+	WDT_PREP_OFF;
+	WDT_SW_OFF;
+	WDT_FLUSH_REASON;
 	// Enter IDLE mode.
-	set_sleep_mode(SLEEP_MODE_IDLE);
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 	sleep_enable();
 	sei();
+	// MCU goes to sleep here.
 	sleep_cpu();
-	// Wake up.
+	// MCU wakes up and continues here.
 	sleep_disable();
 	// Re-configure WDT.
 	cli();
 	wdt_reset();
 	// Enable watchdog, prepare for prescaler change.
-	WDTCSR|=(1<<WDCE)|(1<<WDE);
-	// Set new timeout (4s).
-	WDTCSR=(0<<WDIE)|(1<<WDE)|(1<<WDP3);
-	sei();
-	//WDTCSR&=~(1<<WDIE);
-	// IR or logic inputs activity: wake up from sleep (if was).
-	uc_tasks|=TASK_PWRUP;
-}
-
-//-------------------------------------- Set fast CPU clock (must perform with no interrupts).
-static void CPU_power_up(void)
-{
-	// Re-configure system.
+	WDT_PREP_ON;
+	WDT_SW_ON;
 	core_prepare_on();
-	// Prepare to change system clock.
-	CLKPR=0x80;
-	// Change clk to 16MHz/1=16MHz.
-	CLKPR=(0<<CLKPS3)|(0<<CLKPS2)|(0<<CLKPS1)|(0<<CLKPS0);
-	// Wait for clock change.
-	NOP;
-	// Clear "sleep" flag.
-	uc_mode_flags&=~MODE_SLEEP;
-	// Deny entering sleep for additional 0.25s.
-	if(uc_sleep_disabled<200) uc_sleep_disabled+=15;
+	sei();
 }
 
 //-------------------------------------- Startup init.
@@ -340,7 +265,7 @@ inline void switches_scan(void)
 		}
 	}
 	// Check REC_INHIBIT sensor for forward direction.
-	if(SW_NOREC_FWD_STATE==0)
+	if(SW_NOREC_FWD_STATE!=0)
 	{
 		if((sw_state&TTR_SW_NOREC_FWD)==0)
 		{
@@ -357,7 +282,7 @@ inline void switches_scan(void)
 		}
 	}
 	// Check REC_INHIBIT sensor for reverse direction.
-	if(SW_NOREC_REV_STATE==0)
+	if(SW_NOREC_REV_STATE!=0)
 	{
 		if((sw_state&TTR_SW_NOREC_REV)==0)
 		{
@@ -390,17 +315,19 @@ inline void switches_scan(void)
 			sw_released|=TTR_SW_TACHO;
 		}
 	}
-#ifdef UART_TERM
 	if(((sw_pressed&(TTR_SW_TAPE_IN|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV))!=0)||
 		((sw_released&(TTR_SW_TAPE_IN|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV))!=0))
 	{
+		// Reset sleep inhibition timer.
+		u8_sleep_inh_timer = 0;
+#ifdef UART_TERM
 		sprintf(u8a_buf, "SWS|TAPE:%01d|F_REC:%01d|R_REC:%01d\n\r",
 				((sw_state&TTR_SW_TAPE_IN)==0)?0:1,
 				((sw_state&TTR_SW_NOREC_FWD)==0)?0:1,
 				((sw_state&TTR_SW_NOREC_REV)==0)?0:1);
 		UART_add_string(u8a_buf);
-	}
 #endif /* UART_TERM */
+	}
 }
 
 uint8_t kbd_state = 0;			// Buttons states from the last [keys_simple_scan()] poll.
@@ -518,9 +445,11 @@ inline void keys_simple_scan(void)
 			kbd_released|=USR_BTN_RECORD;
 		}
 	}
-#ifdef UART_TERM
 	if(kbd_pressed!=0)
 	{
+		// Reset sleep inhibition timer.
+		u8_sleep_inh_timer = 0;
+#ifdef UART_TERM
 		sprintf(u8a_buf, "KBD|REWN:%01d|STOP:%01d|FFWD:%01d|PB_F:%01d|PB_R:%01d|REC:%01d\n\r",
 				((kbd_pressed&USR_BTN_REWIND)==0)?0:1,
 				((kbd_pressed&USR_BTN_STOP)==0)?0:1,
@@ -529,8 +458,8 @@ inline void keys_simple_scan(void)
 				((kbd_pressed&USR_BTN_PLAY_REV)==0)?0:1,
 				((kbd_pressed&USR_BTN_RECORD)==0)?0:1);
 		UART_add_string(u8a_buf);
-	}
 #endif /* UART_TERM */
+	}
 }
 
 //-------------------------------------- Poll tachometer transitions.
@@ -597,7 +526,10 @@ inline void update_indicators(void)
 		{
 			// Single playback button (clicking toggles direction) and Playback LED.
 			// Playback indicator.
-			if((u8_mech_mode==USR_MODE_PLAY_FWD)||(u8_mech_mode==USR_MODE_PLAY_REV))
+			if((u8_mech_mode==USR_MODE_PLAY_FWD)||
+				(u8_mech_mode==USR_MODE_PLAY_REV||
+				(u8_mech_mode==USR_MODE_REC_FWD)||
+				(u8_mech_mode==USR_MODE_REC_REV)))
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY;
 			}
@@ -606,7 +538,7 @@ inline void update_indicators(void)
 				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY;
 			}
 			// Playback direction indicator.
-			if(u8_mech_mode==USR_MODE_PLAY_REV)
+			if((u8_mech_mode==USR_MODE_PLAY_REV)||(u8_mech_mode==USR_MODE_REC_REV))
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_DIR;
 			}
@@ -619,7 +551,7 @@ inline void update_indicators(void)
 		{
 			// Two playback buttons (for each direction) and two Playback LEDs.
 			// Playback forward indicator.
-			if(u8_mech_mode==USR_MODE_PLAY_FWD)
+			if((u8_mech_mode==USR_MODE_PLAY_FWD)||(u8_mech_mode==USR_MODE_REC_FWD))
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_FWD;
 			}
@@ -628,7 +560,7 @@ inline void update_indicators(void)
 				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY_FWD;
 			}
 			// Playback backwards indicator.
-			if(u8_mech_mode==USR_MODE_PLAY_REV)
+			if((u8_mech_mode==USR_MODE_PLAY_REV)||(u8_mech_mode==USR_MODE_REC_REV))
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_REV;
 			}
@@ -636,6 +568,15 @@ inline void update_indicators(void)
 			{
 				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY_REV;
 			}
+		}
+		// Record indicator.
+		if((u8_mech_mode==USR_MODE_REC_FWD)||(u8_mech_mode==USR_MODE_REC_REV))
+		{
+			u8a_spi_buf[SPI_IDX_IND] |= IND_REC;
+		}
+		else
+		{
+			u8a_spi_buf[SPI_IDX_IND] &= ~IND_REC;
 		}
 		// Fast forward indicator.
 		if(u8_mech_mode==USR_MODE_FWIND_FWD)
@@ -663,7 +604,7 @@ inline void update_indicators(void)
 		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_STOP|IND_PLAY_FWD|IND_PLAY_REV|IND_FFORWARD|IND_REWIND);
 		if((u8_transport_error&TTR_ERR_BAD_DRIVE)!=0)
 		{
-			if((u8_tasks&TASK_FAST_BLINK)!=0)
+			if((u8_tasks&TASK_SLOW_BLINK)!=0)
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_ERROR;
 			}
@@ -674,7 +615,7 @@ inline void update_indicators(void)
 		}
 		else if((u8_transport_error&TTR_ERR_NO_CTRL)!=0)
 		{
-			if((u8_tasks&TASK_SLOW_BLINK)!=0)
+			if((u8_tasks&TASK_FAST_BLINK)!=0)
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_ERROR;
 			}
@@ -687,7 +628,6 @@ inline void update_indicators(void)
 		{
 			u8a_spi_buf[SPI_IDX_IND] |= IND_ERROR;
 		}
-		
 	}
 	// Transmit indicator information via SPI.
 	SPI_TX_START;
@@ -697,9 +637,18 @@ inline void update_indicators(void)
 //-------------------------------------- Process input from user.
 void process_user(void)
 {
+#ifdef UART_TERM
 	uint8_t last_user_mode;
 	// Save mode.
 	last_user_mode = u8_user_mode;
+#endif /* UART_TERM */
+	if(((kbd_state&USR_BTN_RECORD)!=0)&&(u8_user_mode!=USR_MODE_STOP))
+	{
+		// Ignore all RECORD+ combinations if not in STOP.
+		kbd_pressed&=~(USR_BTN_REWIND|USR_BTN_PLAY_REV|USR_BTN_STOP|USR_BTN_PLAY|USR_BTN_FFORWARD);
+	}
+	// Always clear RECORD events.
+	kbd_pressed&=~USR_BTN_RECORD;
 	// Button priority: from lowest to highest.
 	if((kbd_pressed&USR_BTN_REWIND)!=0)
 	{
@@ -713,12 +662,6 @@ void process_user(void)
 		// Fast forward.
 		u8_user_mode = USR_MODE_FWIND_FWD;
 	}
-	if((kbd_pressed&USR_BTN_RECORD)!=0)
-	{
-		kbd_pressed&=~USR_BTN_RECORD;
-		// TODO: add record button processing
-	}
-	
 	// Check reverse settings.
 	if((u16_features&TTR_FEA_REV_ENABLE)==0)
 	{
@@ -726,11 +669,21 @@ void process_user(void)
 		if((kbd_pressed&USR_BTN_PLAY)!=0)
 		{
 			kbd_pressed&=~USR_BTN_PLAY;
-			// Start/resume playback in forward direction.
-			u8_user_mode = USR_MODE_PLAY_FWD;
+			// Check if RECORD button is held.
+			if(((kbd_state&USR_BTN_RECORD)==0)||((sw_state&TTR_SW_NOREC_FWD)!=0))
+			{
+				// Record button is not held or REC INHIBIT in forward direction is active.
+				// Start/resume playback in forward direction.
+				u8_user_mode = USR_MODE_PLAY_FWD;
+			}
+			else
+			{
+				// Start/resume recording in forward direction.
+				u8_user_mode = USR_MODE_REC_FWD;
+			}
 		}
-		// Always clear second button flag.
-			kbd_pressed&=~USR_BTN_PLAY_REV;
+		// Always clear second playback button flag.
+		kbd_pressed&=~USR_BTN_PLAY_REV;
 	}
 	else
 	{
@@ -755,36 +708,121 @@ void process_user(void)
 				else
 				{
 					// Current mode is not PLAY.
-					// Check last playback direction.
-					if(u8_last_play_dir==PB_DIR_FWD)
+					if((kbd_state&USR_BTN_RECORD)==0)
 					{
-						// Start/resume playback in forward direction.
-						u8_user_mode = USR_MODE_PLAY_FWD;
+						// Record is not requested or TTR is not in STOP.
+						// Check last playback direction.
+						if(u8_last_play_dir==PB_DIR_FWD)
+						{
+							// Start/resume playback in forward direction.
+							u8_user_mode = USR_MODE_PLAY_FWD;
+						}
+						else
+						{
+							// Start/resume playback in reverse direction.
+							u8_user_mode = USR_MODE_PLAY_REV;
+						}
 					}
 					else
 					{
-						// Start/resume playback in reverse direction.
-						u8_user_mode = USR_MODE_PLAY_REV;
+						// Record is requested and TTR is in STOP.
+						// Check last playback direction.
+						if(u8_last_play_dir==PB_DIR_FWD)
+						{
+							// Last direction: forward.
+							// Check record inhibit switch for forward direction.
+							if((sw_state&TTR_SW_NOREC_FWD)==0)
+							{
+								// Recording is allowed.
+								// Start/resume recording in forward direction.
+								u8_user_mode = USR_MODE_REC_FWD;
+							}
+							else
+							{
+								// Record is inhibited.
+								// Start/resume playback in forward direction.
+								u8_user_mode = USR_MODE_PLAY_FWD;
+							}
+						}
+						else
+						{
+							// Last direction: reverse.
+							// Check record inhibit switch for reverse direction.
+							if((sw_state&TTR_SW_NOREC_REV)==0)
+							{
+								// Recording is allowed.
+								// Start/resume recording in reverse direction.
+								u8_user_mode = USR_MODE_REC_REV;
+							}
+							else
+							{
+								// Record is inhibited.
+								// Start/resume playback in reverse direction.
+								u8_user_mode = USR_MODE_PLAY_REV;
+							}
+						}
 					}
 				}
 			}
-			// Always clear second button flag.
+			// Always clear second playback button flag.
 			kbd_pressed&=~USR_BTN_PLAY_REV;
 		}
 		else
 		{
 			// Two playback buttons (for each direction).
-			if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
+			if((kbd_state&USR_BTN_RECORD)!=0)
 			{
-				kbd_pressed&=~USR_BTN_PLAY_REV;
-				// Start/resume playback in reverse direction.
-				u8_user_mode = USR_MODE_PLAY_REV;
+				// Record is not requested or TTR is not in STOP.
+				if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
+				{
+					kbd_pressed&=~USR_BTN_PLAY_REV;
+					// Start/resume playback in reverse direction (less priority).
+					u8_user_mode = USR_MODE_PLAY_REV;
+				}
+				if((kbd_pressed&USR_BTN_PLAY)!=0)
+				{
+					kbd_pressed&=~USR_BTN_PLAY;
+					// Start/resume playback in forward direction (more priority).
+					u8_user_mode = USR_MODE_PLAY_FWD;
+				}
 			}
-			if((kbd_pressed&USR_BTN_PLAY)!=0)
+			else
 			{
-				kbd_pressed&=~USR_BTN_PLAY;
-				// Start/resume playback in forward direction.
-				u8_user_mode = USR_MODE_PLAY_FWD;
+				// Record is requested.
+				if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
+				{
+					kbd_pressed&=~USR_BTN_PLAY_REV;
+					// Check record inhibit switch for reverse direction.
+					if((sw_state&TTR_SW_NOREC_REV)==0)
+					{
+						// Recording is allowed.
+						// Start/resume recording in reverse direction (less priority).
+						u8_user_mode = USR_MODE_REC_REV;
+					}
+					else
+					{
+						// Record is inhibited.
+						// Start/resume playback in reverse direction (less priority).
+						u8_user_mode = USR_MODE_PLAY_REV;
+					}
+				}
+				if((kbd_pressed&USR_BTN_PLAY)!=0)
+				{
+					kbd_pressed&=~USR_BTN_PLAY;
+					// Check record inhibit switch for forward direction.
+					if((sw_state&TTR_SW_NOREC_FWD)==0)
+					{
+						// Recording is allowed.
+						// Start/resume recording in forward direction (more priority).
+						u8_user_mode = USR_MODE_REC_FWD;
+					}
+					else
+					{
+						// Record is inhibited.
+						// Start/resume playback in forward direction (more priority).
+						u8_user_mode = USR_MODE_PLAY_FWD;
+					}
+				}
 			}
 		}
 	}
@@ -972,11 +1010,6 @@ int main(void)
 
 	// Enable interrupts globally.
 	sei();
-	//ADC_CLR_INTR;
-	//ADC_START;
-
-	// Calibrate audio inputs.
-	//audio_input_calibrate();
 
     // Main cycle.
     while(1)
@@ -991,15 +1024,6 @@ int main(void)
 	    sei();
 
 	    // Process deferred tasks.
-		/*if((u8_buf_interrupts&INTR_READ_ADC)!=0)
-		{
-			u8_buf_interrupts&=~INTR_READ_ADC;
-			// ADC conversion is done.
-			ADC_read_result();
-			// Transforming audio values (centering wave and putting it into limits).
-			u16_audio_in_left = audio_centering(u16_audio_in_left, u16_audio_center_left);
-			u16_audio_in_right = audio_centering(u16_audio_in_right, u16_audio_center_right);
-		}*/
 		if((u8_buf_interrupts&INTR_SYS_TICK)!=0)
 		{
 			u8_buf_interrupts&=~INTR_SYS_TICK;
@@ -1016,10 +1040,15 @@ int main(void)
 				u8_tasks^=TASK_SLOW_BLINK;
 				// Reset watchdog timer.
 				wdt_reset();
-#ifdef UART_TERM				
+				// Increase sleep inhibition timer.
+				if(u8_sleep_inh_timer<SLEEP_INHIBIT_2HZ)
+				{
+					u8_sleep_inh_timer++;
+				}
+#ifdef UART_TERM
 				//sprintf(u8a_buf, "SLEEP|%05u|%03u\n\r", u16_crp42602y_idle_time, u8_tacho_timer);
 				//UART_add_string(u8a_buf);
-#endif /* UART_TERM */				
+#endif /* UART_TERM */
 			}
 			if((u8_tasks&TASK_10HZ)!=0)
 			{
@@ -1027,7 +1056,7 @@ int main(void)
 				// 10 Hz event, 100 ms period.
 				// Toggle fast blink flag.
 				u8_tasks^=TASK_FAST_BLINK;
-#ifdef UART_TERM				
+#ifdef UART_TERM
 				//sprintf(u8a_buf, "SLEEP|%02u|%05u|%03u\n\r", u8_crp42602y_mode, u16_crp42602y_idle_time, u8_tacho_timer);
 				//UART_add_string(u8a_buf);
 #endif /* UART_TERM */
@@ -1109,12 +1138,6 @@ int main(void)
 			SPI_TX_END;
 		}
 #ifdef UART_TERM
-		if((u8_buf_interrupts&INTR_UART_RECEIVED)!=0)
-		{
-			u8_buf_interrupts&=~INTR_UART_RECEIVED;
-			// Receive a byte from UART.
-			UART_receive_byte();
-		}
 		if((u8_buf_interrupts&INTR_UART_SENT)!=0)
 		{
 			u8_buf_interrupts&=~INTR_UART_SENT;
@@ -1122,6 +1145,19 @@ int main(void)
 			UART_send_byte();
 		}
 #endif /* UART_TERM */
+		// Check if everything is done and MCU can sleep.
+		if(u8_user_mode!=USR_MODE_STOP)
+		{
+			// Reset sleep inhibition timer.
+			u8_sleep_inh_timer = 0;
+		}
+		else if((CAPSTAN_STATE==0)&&					// Capstan was stopped by timeout
+			(u8_sleep_inh_timer>=SLEEP_INHIBIT_2HZ)&&	// Sleep is allowed
+			(u8_transport_error==TTR_ERR_NONE))			// No pending errors
+		{
+			// Go to sleep.
+			CPU_power_down();
+		}
+
     }
 }
-

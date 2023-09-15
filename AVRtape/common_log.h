@@ -3,7 +3,7 @@
  *
  * Created: 07.09.2023 17:14:38
  *  Author: kryukov
- */ 
+ */
 
 
 #ifndef COMMON_LOG_H_
@@ -41,6 +41,8 @@
 #define TTR_SW_NOREC_FWD	(1<<3)	// Rec inhibit in forward direction
 #define TTR_SW_NOREC_REV	(1<<4)	// Rec inhibit in reverse direction
 
+#define SLEEP_INHIBIT_2HZ	6		// Time for sleep inhibition with 2HZ rate
+
 // State of tape playback direction.
 enum
 {
@@ -58,9 +60,11 @@ enum
 enum
 {
 	USR_MODE_STOP,					// STOP
-	USR_MODE_PLAY_FWD,				// PLAY forward
+	USR_MODE_PLAY_FWD,				// PLAY in forward
 	USR_MODE_PLAY_REV,				// PLAY in reverse
-	USR_MODE_FWIND_FWD,				// FAST WIND forward
+	USR_MODE_REC_FWD,				// RECORD in forward
+	USR_MODE_REC_REV,				// RECORD in reverse
+	USR_MODE_FWIND_FWD,				// FAST WIND in forward
 	USR_MODE_FWIND_REV				// FAST WIND in reverse
 };
 
@@ -74,7 +78,7 @@ enum
 	TTR_ERR_LOGIC_FAULT = 0x80		// Abnormal logic state detected
 };
 
-// Flags for reverse playback settings for [u8_features].
+// Flags for reverse playback settings for [u16_features].
 enum
 {
 	TTR_FEA_STOP_TACHO = (1<<0),	// Enable checking tachometer in STOP mode (some CRP42602Y can do that)

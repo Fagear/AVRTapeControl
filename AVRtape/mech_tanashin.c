@@ -19,6 +19,10 @@ uint8_t mech_tanashin_user_to_transport(uint8_t in_mode)
 	{
 		return TTR_TANA_MODE_PB_FWD;
 	}
+	if(in_mode==USR_MODE_REC_FWD)
+	{
+		return TTR_TANA_MODE_RC_FWD;
+	}
 	if(in_mode==USR_MODE_FWIND_FWD)
 	{
 		return TTR_TANA_MODE_FW_FWD;
@@ -37,6 +41,10 @@ void mech_tanashin_static_halt(uint8_t in_sws, uint8_t *usr_mode)
 	u8_tanashin_target_mode = TTR_TANA_MODE_HALT;
 	// Clear user mode.
 	(*usr_mode) = USR_MODE_STOP;
+	// Turn on mute.
+	MUTE_EN_ON;
+	// Turn off recording circuit.
+	REC_EN_OFF;
 	// Keep timer reset, no mode transitions.
 	u8_tanashin_trans_timer = 0;
 	// Check mechanical stop sensor.
@@ -50,7 +58,7 @@ void mech_tanashin_static_halt(uint8_t in_sws, uint8_t *usr_mode)
 		CAPSTAN_ON;
 		// Force STOP if transport is not in STOP.
 		u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;				// Load maximum delay to allow mechanism to revert to STOP (before retrying)
-		u8_tanashin_target_mode = TTR_TANA_MODE_TO_HALT;			// Set mode to trigger solenoid
+		u8_tanashin_mode = TTR_TANA_SUBMODE_TO_HALT;				// Set mode to trigger solenoid
 	}
 	else
 	{
@@ -68,6 +76,11 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 	UART_add_flash_string((uint8_t *)cch_target2current1); mech_tanashin_UART_dump_mode(u8_tanashin_mode);
 	UART_add_flash_string((uint8_t *)cch_target2current2); mech_tanashin_UART_dump_mode(u8_tanashin_target_mode); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
+	// Before any transition...
+	// Turn on mute.
+	MUTE_EN_ON;
+	// Turn off recording circuit.
+	REC_EN_OFF;
 	// For any mode transition capstan must be running.
 	// Check if capstan is running.
 	if(CAPSTAN_STATE==0)
@@ -76,12 +89,8 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 #ifdef UART_TERM
 		UART_add_flash_string((uint8_t *)cch_capst_start);
 #endif /* UART_TERM */
-		// Turn on capstan motor.
-		CAPSTAN_ON;
 		// Override target mode to perform capstan spinup wait.
 		u8_tanashin_target_mode = TTR_TANA_MODE_TO_INIT;
-		// Reset tachometer timeout.
-		(*tacho) = 0;
 	}
 	// Reset idle timer.
 	u16_tanashin_idle_time = 0;
@@ -97,8 +106,9 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 		u8_tanashin_mode = TTR_TANA_MODE_INIT;
 		// Move target to STOP mode.
 		u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
-		// Clear user mode.
-		(*usr_mode) = USR_MODE_STOP;
+		// Turn on capstan motor.
+		CAPSTAN_ON;
+		// Turn off solenoid, let mechanism stabilize.
 		SOLENOID_OFF;
 	}
 	else if(u8_tanashin_target_mode==TTR_TANA_MODE_STOP)
@@ -107,34 +117,62 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 		if(u8_tanashin_mode==TTR_TANA_MODE_PB_FWD)
 		{
 			// From playback there is only way to fast wind, need to get through that.
+			u8_tanashin_trans_timer = TIM_TANA_DLY_FWIND_WAIT;
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_FWIND;
 		}
 		else if((u8_tanashin_mode==TTR_TANA_MODE_FW_FWD)||(u8_tanashin_mode==TTR_TANA_MODE_FW_REV))
 		{
 			// Next from fast wind is stop.
+			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 		}
 		else
 		{
 			// TTR is in unknown state.
+			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 		}
-
-		u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
-		u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 	}
 	else
 	{
-		// Reset tachometer timer.
-		//(*tacho) = 0;
 		// Check new target mode.
-		// TODO: select transition scheme from current mode & target mode.
-		if((u8_tanashin_target_mode==TTR_TANA_MODE_PB_FWD)
-			||(u8_tanashin_target_mode==TTR_TANA_MODE_FW_FWD)||(u8_tanashin_target_mode==TTR_TANA_MODE_FW_REV))
+		if(u8_tanashin_target_mode==TTR_TANA_MODE_PB_FWD)
 		{
-			// Start transition to active mode.
-#ifdef UART_TERM
-			UART_add_string("New: active\n\r");
-#endif /* UART_TERM */
-			//u8_tanashin_trans_timer = TIM_42602_DELAY_RUN;
-			//u8_tanashin_mode = TTR_42602_SUBMODE_TO_START;
+			// Target mode: PLAYBACK.
+			if(u8_tanashin_mode==TTR_TANA_MODE_STOP)
+			{
+				// Playback can be selected only from STOP.
+				u8_tanashin_trans_timer = TIM_TANA_DLY_PB_WAIT;
+				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_PLAY;
+			}
+			else
+			{
+				// From fast wind or unknown mode the mode has to become STOP at first.
+				u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
+			}
+		}
+		else if((u8_tanashin_target_mode==TTR_TANA_MODE_FW_FWD)||(u8_tanashin_target_mode==TTR_TANA_MODE_FW_REV))
+		{
+			// Target mode: FAST WIND.
+			if(u8_tanashin_mode==TTR_TANA_MODE_STOP)
+			{
+				// Fast wind can be selected only through PLAY.
+				u8_tanashin_trans_timer = TIM_TANA_DLY_PB_WAIT;
+				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_PLAY;
+			}
+			else if(u8_tanashin_mode==TTR_TANA_MODE_PB_FWD)
+			{
+				// Direct select FAST WIND from PLAY.
+				u8_tanashin_trans_timer = TIM_TANA_DLY_FWIND_WAIT;
+				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_FWIND;
+			}
+			else
+			{
+				// Re-select FAST WIND through STOP.
+				u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
+			}
 		}
 		else
 		{
@@ -142,12 +180,14 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 #ifdef UART_TERM
 			UART_add_flash_string((uint8_t *)cch_unknown_mode);
 #endif /* UART_TERM */
-			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 			(*usr_mode) = USR_MODE_STOP;
 		}
 		// Reset last error.
 		u8_tanashin_error = TTR_ERR_NONE;
 	}
+	// Reset tachometer timeout.
+	(*tacho) = 0;
 }
 
 //-------------------------------------- Take in user desired mode and set new target mode.
@@ -157,18 +197,8 @@ void mech_tanashin_user2target(uint8_t *usr_mode)
 	UART_add_flash_string((uint8_t *)cch_user2target1); mech_tanashin_UART_dump_mode(u8_tanashin_target_mode);
 	UART_add_flash_string((uint8_t *)cch_user2target2); UART_dump_user_mode((*usr_mode)); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
-	if(u8_tanashin_target_mode!=TTR_TANA_MODE_STOP)
-	{
-		// Mechanism is in active mode, user wants another mode, set target as STOP, it's the only way to transition to another mode.
-		// New target mode will apply in the next run of the [transport_state_machine()].
-		u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
-	}
-	else
-	{
-		// Mechanism is in STOP mode, simple: set target to what user wants.
-		// New target mode will apply in the next run of the [transport_state_machine()].
-		u8_tanashin_target_mode = mech_tanashin_user_to_transport((*usr_mode));
-	}
+	// New target mode will apply in the next run of the [transport_state_machine()].
+	u8_tanashin_target_mode = mech_tanashin_user_to_transport((*usr_mode));
 }
 
 //-------------------------------------- Control mechanism in static mode (not transitioning between modes).
@@ -177,6 +207,15 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 	if(u8_tanashin_mode==TTR_TANA_MODE_STOP)
 	{
 		// Transport supposed to be in STOP.
+		// Increase idle timer.
+		if(u16_tanashin_idle_time<IDLE_TANA_MAX)
+		{
+			u16_tanashin_idle_time++;
+		}
+		// Keep mute on.
+		MUTE_EN_ON;
+		// Keep recording circuit off.
+		REC_EN_OFF;
 		// Check mechanism for mechanical STOP condition.
 		if((in_sws&TTR_SW_STOP)==0)
 		{
@@ -184,44 +223,58 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 #ifdef UART_TERM
 			UART_add_flash_string((uint8_t *)cch_stop_active); UART_add_flash_string((uint8_t *)cch_force_stop);
 #endif /* UART_TERM */
-			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
 			// Force STOP if transport is not in STOP.
-			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;				// Load maximum delay to allow mechanism to revert to STOP (before retrying)
-			u8_tanashin_mode = TIM_TANA_DLY_WAIT_REW_ACT;		// Set mode to trigger solenoid
+			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;			// Load maximum delay to allow mechanism to revert to STOP (before retrying)
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;			// Set mode to trigger solenoid
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;			// Set target to be STOP
 		}
 	}
-	else if(u8_tanashin_mode==TTR_TANA_MODE_PB_FWD)
+	else if((u8_tanashin_mode==TTR_TANA_MODE_PB_FWD)||(u8_tanashin_mode==TTR_TANA_MODE_RC_FWD))
 	{
-		// Transport supposed to be in PLAYBACK.
+		// Transport supposed to be in PLAYBACK or RECORD.
+		// Reset idle timer.
+		u16_tanashin_idle_time = 0;
 		// Check tachometer timer.
 		if((*tacho)>TACHO_TANA_PLAY_DLY_MAX)
 		{
 			// No signal from takeup tachometer for too long.
-#ifdef UART_TERM
-			UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
-#endif /* UART_TERM */
 			// Perform auto-stop.
+			u8_tanashin_trans_timer = TIM_TANA_DLY_FWIND_WAIT;
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_FWIND;
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
-		}
-		// Check if tape has dropped out.
-		else if((in_sws&TTR_SW_TAPE_IN)==0)
-		{
-#ifdef UART_TERM
-			if((u8_tanashin_target_mode!=TTR_TANA_MODE_STOP)||((*usr_mode)!=USR_MODE_STOP))
+			if((in_features&TTR_FEA_END_REW)!=0)
 			{
-				UART_add_flash_string((uint8_t *)cch_no_tape);
+				// Auto-rewind is enabled.
+#ifdef UART_TERM
+				UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_rewind);
+#endif /* UART_TERM */
+				// Queue rewind.
+				(*usr_mode) = USR_MODE_FWIND_REV;
+			}
+#ifdef UART_TERM
+			else
+			{
+				// No auto-rewind.
+				UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
+				// STOP mode already queued.
 			}
 #endif /* UART_TERM */
-			// Tape is out, clear any active mode.
-			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
-			// Clear user mode.
-			(*usr_mode) = USR_MODE_STOP;
+		}
+		else
+		{
+			// No tachometer timeout.
+			// Keep mute off.
+			MUTE_EN_OFF;
+			if(u8_tanashin_mode==TTR_TANA_MODE_RC_FWD)
+			{
+				// Keep recording circuit on.
+				REC_EN_ON;
+			}
 		}
 		// Check if somehow (manually?) transport switched into STOP.
-		else if((in_sws&TTR_SW_STOP)!=0)
+		if((in_sws&TTR_SW_STOP)!=0)
 		{
 			// Mechanism unexpectedly slipped into STOP.
 #ifdef UART_TERM
@@ -237,34 +290,42 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 	else if((u8_tanashin_mode==TTR_TANA_MODE_FW_FWD)||(u8_tanashin_mode==TTR_TANA_MODE_FW_REV))
 	{
 		// Transport supposed to be in FAST WIND.
+		// Keep mute on.
+		MUTE_EN_ON;
+		// Keep recording circuit off.
+		REC_EN_OFF;
+		// Reset idle timer.
+		u16_tanashin_idle_time = 0;
 		// Check tachometer timer.
 		if((*tacho)>TACHO_TANA_FWIND_DLY_MAX)
 		{
 			// No signal from takeup tachometer for too long.
-#ifdef UART_TERM
-			UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
-#endif /* UART_TERM */
 			// Perform auto-stop.
+			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
-		}
-		// Check if tape has dropped out.
-		else if((in_sws&TTR_SW_TAPE_IN)==0)
-		{
-#ifdef UART_TERM
-			if((u8_tanashin_target_mode!=TTR_TANA_MODE_STOP)||((*usr_mode)!=USR_MODE_STOP))
+			if(((in_features&TTR_FEA_END_REW)!=0)&&(u8_tanashin_mode==TTR_TANA_MODE_FW_FWD))
 			{
-				UART_add_flash_string((uint8_t *)cch_no_tape);
+				// Auto-rewind is enabled and fast wind was in forward direction.
+#ifdef UART_TERM
+				UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_rewind);
+#endif /* UART_TERM */
+				// Queue rewind.
+				(*usr_mode) = USR_MODE_FWIND_REV;
+			}
+#ifdef UART_TERM
+			else
+			{
+				// No auto-rewind.
+				UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
+				// STOP mode already queued.
 			}
 #endif /* UART_TERM */
-			// Tape is out, clear any active mode.
-			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
-			// Clear user mode.
-			(*usr_mode) = USR_MODE_STOP;
 		}
 		// Check if somehow (manually?) transport switched into STOP.
-		else if((in_sws&TTR_SW_STOP)!=0)
+		if((in_sws&TTR_SW_STOP)!=0)
 		{
 			// Mechanism unexpectedly slipped into STOP.
 #ifdef UART_TERM
@@ -279,12 +340,196 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 	}
 }
 
+//-------------------------------------- Transition through modes, timing solenoid.
+void mech_tanashin_cyclogram(uint8_t in_sws)
+{
+	if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_HALT)
+	{
+		// Activate solenoid to start transition to HALT.
+		SOLENOID_ON;
+		u8_tanashin_mode = TTR_TANA_MODE_HALT;
+	}
+	else if(u8_tanashin_mode==TTR_TANA_MODE_HALT)
+	{
+		// Desired mode: recovery stop in halt mode.
+		if(u8_tanashin_trans_timer<(TIM_TANA_DELAY_STOP-TIM_TANA_DLY_SW_ACT))
+		{
+			// Initial time for activating mode transition to STOP has passed.
+			// Release solenoid while waiting for transport to transition to STOP.
+			SOLENOID_OFF;
+		}
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_STOP)
+	{
+		// Activate solenoid to start transition to STOP.
+		SOLENOID_ON;
+		u8_tanashin_mode = TTR_TANA_SUBMODE_WAIT_STOP;
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_PLAY)
+	{
+		// Activate solenoid to start transition to PLAY.
+		SOLENOID_ON;
+		u8_tanashin_mode = TTR_TANA_SUBMODE_WAIT_PLAY;
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_REC)
+	{
+		// Activate solenoid to start transition to RECORD.
+		SOLENOID_ON;
+		// Turn on recording circuit (before heads contact the tape).
+		REC_EN_ON;
+		u8_tanashin_mode = TTR_TANA_SUBMODE_WAIT_REC;
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_FWIND)
+	{
+		// Activate solenoid to start transition to PLAY.
+		SOLENOID_ON;
+		u8_tanashin_mode = TTR_TANA_SUBMODE_WAIT_TAKEUP;
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_WAIT_STOP)
+	{
+		// Transitioning to STOP mode.
+		if(u8_tanashin_trans_timer==0)
+		{
+			// Deactivate solenoid.
+			SOLENOID_OFF;
+			// Set stable state.
+			u8_tanashin_mode = TTR_TANA_MODE_STOP;
+		}
+		else if(u8_tanashin_trans_timer<(TIM_TANA_DELAY_STOP-TIM_TANA_DLY_SW_ACT))
+		{
+			// Deactivate solenoid and wait for transition to happen.
+			SOLENOID_OFF;
+		}
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_WAIT_PLAY)
+	{
+		// Transitioning to PLAY mode.
+		if(u8_tanashin_trans_timer==0)
+		{
+			// Deactivate solenoid.
+			SOLENOID_OFF;
+			// Set stable state.
+			u8_tanashin_mode = TTR_TANA_MODE_PB_FWD;
+			// Check if mechanical STOP state wasn't cleared.
+			if((in_sws&TTR_SW_STOP)!=0)
+			{
+#ifdef UART_TERM
+				UART_add_flash_string((uint8_t *)cch_active_stop); UART_add_flash_string((uint8_t *)cch_endl);
+				UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
+#endif /* UART_TERM */
+				// Mechanically mode didn't change from STOP, register an error.
+				u8_tanashin_target_mode = TTR_TANA_MODE_HALT;
+				u8_tanashin_mode = TTR_TANA_MODE_HALT;
+				u8_tanashin_error += TTR_ERR_NO_CTRL;
+			}
+			else
+			{
+				// Turn off mute.
+				MUTE_EN_OFF;
+			}
+		}
+		else if(u8_tanashin_trans_timer<(TIM_TANA_DLY_PB_WAIT-TIM_TANA_DLY_SW_ACT))
+		{
+			// Deactivate solenoid and wait for transition to happen.
+			SOLENOID_OFF;
+		}
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_WAIT_REC)
+	{
+		// Transitioning to RECORD mode.
+		if(u8_tanashin_trans_timer==0)
+		{
+			// Deactivate solenoid.
+			SOLENOID_OFF;
+			// Set stable state.
+			u8_tanashin_mode = TTR_TANA_MODE_RC_FWD;
+			// Check if mechanical STOP state wasn't cleared.
+			if((in_sws&TTR_SW_STOP)!=0)
+			{
+#ifdef UART_TERM
+				UART_add_flash_string((uint8_t *)cch_active_stop); UART_add_flash_string((uint8_t *)cch_endl);
+				UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
+#endif /* UART_TERM */
+				// Mechanically mode didn't change from STOP, register an error.
+				u8_tanashin_target_mode = TTR_TANA_MODE_HALT;
+				u8_tanashin_mode = TTR_TANA_MODE_HALT;
+				u8_tanashin_error += TTR_ERR_NO_CTRL;
+			}
+			else
+			{
+				// Turn off mute.
+				MUTE_EN_OFF;
+			}
+		}
+		else if(u8_tanashin_trans_timer<(TIM_TANA_DLY_PB_WAIT-TIM_TANA_DLY_SW_ACT))
+		{
+			// Deactivate solenoid and wait for transition to happen.
+			SOLENOID_OFF;
+		}
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_WAIT_TAKEUP)
+	{
+		// Transitioning to FAST WIND mode.
+		if(u8_tanashin_trans_timer==0)
+		{
+			// Deactivate solenoid.
+			SOLENOID_OFF;
+			// Check takeup direction for FAST WIND.
+			if(u8_tanashin_target_mode==TTR_TANA_MODE_FW_REV)
+			{
+				// Set stable state.
+				u8_tanashin_mode = TTR_TANA_MODE_FW_REV;
+			}
+			else
+			{
+				// Set stable state.
+				u8_tanashin_mode = TTR_TANA_MODE_FW_FWD;
+			}
+			// Check if mechanical STOP state suddenly appeared.
+			if((in_sws&TTR_SW_STOP)!=0)
+			{
+#ifdef UART_TERM
+				UART_add_flash_string((uint8_t *)cch_active_stop); UART_add_flash_string((uint8_t *)cch_endl);
+				UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
+#endif /* UART_TERM */
+				// Mechanically mode slipped to STOP, register an error.
+				u8_tanashin_target_mode = TTR_TANA_MODE_HALT;
+				u8_tanashin_mode = TTR_TANA_MODE_HALT;
+				u8_tanashin_error += TTR_ERR_NO_CTRL;
+			}
+		}
+		else if(u8_tanashin_trans_timer<(TIM_TANA_DLY_FWIND_WAIT-TIM_TANA_DLY_FWIND_ACT))
+		{
+			// Deactivate solenoid and wait for transition to happen.
+			SOLENOID_OFF;
+		}
+		else if(u8_tanashin_trans_timer<(TIM_TANA_DLY_FWIND_WAIT-TIM_TANA_DLY_WAIT_REW_ACT))
+		{
+			// Check takeup direction for FAST WIND.
+			if(u8_tanashin_target_mode==TTR_TANA_MODE_FW_REV)
+			{
+				// Activate solenoid for reverse direction.
+				SOLENOID_ON;
+			}
+		}
+		else if(u8_tanashin_trans_timer<(TIM_TANA_DLY_FWIND_WAIT-TIM_TANA_DLY_SW_ACT))
+		{
+			// Deactivate solenoid and wait for takeup selection range.
+			SOLENOID_OFF;
+		}
+	}
+#ifdef UART_TERM
+	if((u8_tanashin_trans_timer==0)&&(u8_tanashin_mode!=TTR_TANA_MODE_HALT))
+	{
+		UART_add_flash_string((uint8_t *)cch_mode_done); UART_add_flash_string((uint8_t *)cch_arrow);
+		mech_tanashin_UART_dump_mode(u8_tanashin_mode); UART_add_flash_string((uint8_t *)cch_endl);
+	}
+#endif /* UART_TERM */
+}
+
 //-------------------------------------- Perform tape transport state machine for Tanashin-clone tape mech.
 void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir)
 {
-	/*sprintf(u8a_buf, "MODE|>%03u<|%01u>%01u>%01u|%02x\n\r",
-	u8_tanashin_trans_timer, (*usr_mode), u8_tanashin_target_mode, u8_tanashin_mode, in_sws);
-	UART_add_string(u8a_buf);*/
 	// Mode overflow protection.
 	if((u8_tanashin_mode>=TTR_TANA_MODE_MAX)||(u8_tanashin_target_mode>=TTR_TANA_MODE_MAX))
 	{
@@ -312,11 +557,15 @@ void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *
 #endif /* UART_TERM */
 		// Clear user mode.
 		(*usr_mode) = USR_MODE_STOP;
-		if(u8_tanashin_target_mode!=TTR_TANA_MODE_HALT)
+		if((u8_tanashin_target_mode!=TTR_TANA_MODE_HALT)&&(u8_tanashin_target_mode!=TTR_TANA_MODE_TO_INIT))
 		{
 			// Tape is out, clear any active mode.
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
 		}
+		// Turn on mute.
+		MUTE_EN_ON;
+		// Turn off recording circuit.
+		REC_EN_OFF;
 	}
 	// Check if transport mode transition is in progress.
 	if(u8_tanashin_trans_timer==0)
@@ -347,86 +596,45 @@ void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *
 			// Transport is not due to transition through modes (u8_tanashin_mode == u8_tanashin_target_mode).
 			mech_tanashin_static_mode(in_features, in_sws, tacho, usr_mode, play_dir);
 		}
+		// Check for idle timeout.
+		if((in_sws&TTR_SW_TAPE_IN)==0)
+		{
+			// No tape is present.
+			if(u16_tanashin_idle_time>=IDLE_TANA_NO_TAPE)
+			{
+#ifdef UART_TERM
+				if(CAPSTAN_STATE!=0)
+				{
+					UART_add_flash_string((uint8_t *)cch_capst_stop);
+				}
+#endif /* UART_TERM */
+				// Shutdown capstan motor.
+				CAPSTAN_OFF;
+			}
+		}
+		else
+		{
+			// Tape is loaded.
+			if(u16_tanashin_idle_time>=IDLE_TANA_TAPE_IN)
+			{
+#ifdef UART_TERM
+				if(CAPSTAN_STATE!=0)
+				{
+					UART_add_flash_string((uint8_t *)cch_capst_stop);
+				}
+#endif /* UART_TERM */
+				// Shutdown capstan motor.
+				CAPSTAN_OFF;
+			}
+		}
 	}
 	else
 	{
 		// Transport in transitioning through states.
 		// Count down mode transition timer.
 		u8_tanashin_trans_timer--;
-		// Check if transition is finished.
-		if(u8_tanashin_trans_timer==0)
-		{
-			// Desired mode reached.
-			// De-energize solenoid.
-			SOLENOID_OFF;
-			// Check if transport is not in error.
-			if(u8_tanashin_mode!=TTR_TANA_MODE_HALT)
-			{
-#ifdef UART_TERM
-				UART_add_flash_string((uint8_t *)cch_mode_done); UART_add_string(" > "); mech_tanashin_UART_dump_mode(u8_tanashin_target_mode); UART_add_flash_string((uint8_t *)cch_endl);
-#endif /* UART_TERM */
-				// Save reached state.
-				u8_tanashin_mode = u8_tanashin_target_mode;
-				// Check if mechanism successfully reached target logic state.
-				// Check if target was one of the active modes.
-				if((u8_tanashin_target_mode==TTR_TANA_MODE_PB_FWD)
-					||(u8_tanashin_target_mode==TTR_TANA_MODE_FW_FWD)||(u8_tanashin_target_mode==TTR_TANA_MODE_FW_REV))
-				{
-					// Check if mechanical STOP state wasn't cleared.
-					if((in_sws&TTR_SW_STOP)!=0)
-					{
-						// Mechanically mode didn't change from STOP, register an error.
-#ifdef UART_TERM
-						UART_add_flash_string((uint8_t *)cch_active_stop); UART_add_flash_string((uint8_t *)cch_endl);
-						UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
-#endif /* UART_TERM */
-						u8_tanashin_mode = TTR_TANA_MODE_HALT;
-						u8_tanashin_error += TTR_ERR_NO_CTRL;
-					}
-				}
-			}
-			// Reset tachometer timer;
-			(*tacho) = 0;
-		}
-		else
-		{
-			// Still in transition (counter != 0).
-			// TODO
-			if((u8_tanashin_target_mode==TTR_TANA_SUBMODE_TO_STOP)||(u8_tanashin_target_mode==TTR_TANA_MODE_TO_HALT))
-			{
-				if(u8_tanashin_trans_timer>(TIM_TANA_DELAY_STOP-TIM_TANA_DLY_SW_ACT))
-				{
-					// Energize solenoid.
-					SOLENOID_ON;
-				}
-				else
-				{
-					// De-energize solenoid.
-					SOLENOID_OFF;
-				}
-			}
-			else if(u8_tanashin_target_mode==TTR_TANA_MODE_PB_FWD)
-			{
-				if(u8_tanashin_trans_timer>(TIM_TANA_DLY_PB_WAIT-TIM_TANA_DLY_SW_ACT))
-				{
-					// Energize solenoid.
-					SOLENOID_ON;
-				}
-				else
-				{
-					// De-energize solenoid.
-					SOLENOID_OFF;
-				}
-			}
-			else if(u8_tanashin_target_mode==TTR_TANA_MODE_FW_FWD)
-			{
-
-			}
-			else if(u8_tanashin_target_mode==TTR_TANA_MODE_FW_REV)
-			{
-
-			}
-		}
+		// Mode transition cyclogram.
+		mech_tanashin_cyclogram(in_sws);
 	}
 #ifdef UART_TERM
 	if((u8_tanashin_trans_timer>0)||(mech_tanashin_user_to_transport((*usr_mode))!=u8_tanashin_target_mode)||(u8_tanashin_target_mode!=u8_tanashin_mode))
@@ -444,6 +652,10 @@ uint8_t mech_tanashin_get_mode()
     if(u8_tanashin_target_mode==TTR_TANA_MODE_PB_FWD)
     {
         return USR_MODE_PLAY_FWD;
+    }
+	if(u8_tanashin_target_mode==TTR_TANA_MODE_RC_FWD)
+    {
+        return USR_MODE_REC_FWD;
     }
     if(u8_tanashin_target_mode==TTR_TANA_MODE_FW_FWD)
     {
@@ -492,6 +704,10 @@ void mech_tanashin_UART_dump_mode(uint8_t in_mode)
 	{
 		UART_add_flash_string((uint8_t *)cch_mode_pb_fwd);
 	}
+	else if(in_mode==TTR_TANA_MODE_RC_FWD)
+	{
+		UART_add_flash_string((uint8_t *)cch_mode_rc_fwd);
+	}
 	else if(in_mode==TTR_TANA_MODE_FW_FWD)
 	{
 		UART_add_flash_string((uint8_t *)cch_mode_fw_fwd);
@@ -500,7 +716,7 @@ void mech_tanashin_UART_dump_mode(uint8_t in_mode)
 	{
 		UART_add_flash_string((uint8_t *)cch_mode_fw_rev);
 	}
-	else if(in_mode==TTR_TANA_MODE_TO_HALT)
+	else if(in_mode==TTR_TANA_SUBMODE_TO_HALT)
 	{
 		UART_add_flash_string((uint8_t *)cch_mode_to_halt);
 	}
