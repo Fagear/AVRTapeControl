@@ -12,7 +12,7 @@
 #define TIM_TANA_DLY_FWIND_ACT		60		// TODO
 #define TIM_TANA_DLY_PB_WAIT		195		// 390 ms (time from the first solenoid activation in STOP until PLAY is fully selected)
 #define TIM_TANA_DLY_FWIND_WAIT		145		// 290 ms (time from the first solenoid activation in PLAY until FWIND is fully selected)
-#define TIM_TANA_DELAY_STOP			240		// (time from the first solenoid activation in FWIND until STOP is fully selected)
+#define TIM_TANA_DLY_STOP			240		// (time from the first solenoid activation in FWIND until STOP is fully selected)
 
 // TODO: set timeouts
 #define TACHO_TANA_STOP_DLY_MAX		200

@@ -57,7 +57,7 @@ void mech_tanashin_static_halt(uint8_t in_sws, uint8_t *usr_mode)
 		// Start capstan motor.
 		CAPSTAN_ON;
 		// Force STOP if transport is not in STOP.
-		u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;				// Load maximum delay to allow mechanism to revert to STOP (before retrying)
+		u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;				// Load maximum delay to allow mechanism to revert to STOP (before retrying)
 		u8_tanashin_mode = TTR_TANA_SUBMODE_TO_HALT;				// Set mode to trigger solenoid
 	}
 	else
@@ -94,6 +94,8 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 	}
 	// Reset idle timer.
 	u16_tanashin_idle_time = 0;
+	// Reset tachometer timeout.
+	(*tacho) = 0;
 	if(u8_tanashin_target_mode==TTR_TANA_MODE_TO_INIT)
 	{
 		// Target mode: start-up delay.
@@ -101,15 +103,11 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 		UART_add_flash_string((uint8_t *)cch_startup_delay);
 #endif /* UART_TERM */
 		// Set time for waiting for mechanism to stabilize.
-		u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+		u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 		// Put transport in init waiting mode.
 		u8_tanashin_mode = TTR_TANA_MODE_INIT;
 		// Move target to STOP mode.
 		u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
-		// Turn on capstan motor.
-		CAPSTAN_ON;
-		// Turn off solenoid, let mechanism stabilize.
-		SOLENOID_OFF;
 	}
 	else if(u8_tanashin_target_mode==TTR_TANA_MODE_STOP)
 	{
@@ -123,13 +121,13 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 		else if((u8_tanashin_mode==TTR_TANA_MODE_FW_FWD)||(u8_tanashin_mode==TTR_TANA_MODE_FW_REV))
 		{
 			// Next from fast wind is stop.
-			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 		}
 		else
 		{
 			// TTR is in unknown state.
-			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 		}
 	}
@@ -148,7 +146,7 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 			else
 			{
 				// From fast wind or unknown mode the mode has to become STOP at first.
-				u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+				u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 			}
 		}
@@ -170,7 +168,7 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 			else
 			{
 				// Re-select FAST WIND through STOP.
-				u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+				u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 			}
 		}
@@ -186,8 +184,6 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 		// Reset last error.
 		u8_tanashin_error = TTR_ERR_NONE;
 	}
-	// Reset tachometer timeout.
-	(*tacho) = 0;
 }
 
 //-------------------------------------- Take in user desired mode and set new target mode.
@@ -224,7 +220,7 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 			UART_add_flash_string((uint8_t *)cch_stop_active); UART_add_flash_string((uint8_t *)cch_force_stop);
 #endif /* UART_TERM */
 			// Force STOP if transport is not in STOP.
-			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;			// Load maximum delay to allow mechanism to revert to STOP (before retrying)
+			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;			// Load maximum delay to allow mechanism to revert to STOP (before retrying)
 			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;			// Set mode to trigger solenoid
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;			// Set target to be STOP
 		}
@@ -283,6 +279,7 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 			// Correct logic mode.
 			u8_tanashin_mode = TTR_TANA_MODE_STOP;
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
+			u8_tanashin_trans_timer = 0;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
 		}
@@ -301,7 +298,7 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 		{
 			// No signal from takeup tachometer for too long.
 			// Perform auto-stop.
-			u8_tanashin_trans_timer = TIM_TANA_DELAY_STOP;
+			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
 			// Clear user mode.
@@ -343,7 +340,21 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 //-------------------------------------- Transition through modes, timing solenoid.
 void mech_tanashin_cyclogram(uint8_t in_sws)
 {
-	if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_HALT)
+	if(u8_tanashin_mode==TTR_TANA_MODE_INIT)
+	{
+		// Desired mode: spin-up capstan, wait for TTR to stabilize.
+		// Turn on capstan motor.
+		CAPSTAN_ON;
+		// Turn off solenoid, let mechanism stabilize.
+		SOLENOID_OFF;
+		if(u8_tanashin_trans_timer==0)
+		{
+			// Transition is done.
+			// Set stable state.
+			u8_tanashin_mode = TTR_TANA_MODE_STOP;
+		}
+	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_HALT)
 	{
 		// Activate solenoid to start transition to HALT.
 		SOLENOID_ON;
@@ -352,7 +363,7 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 	else if(u8_tanashin_mode==TTR_TANA_MODE_HALT)
 	{
 		// Desired mode: recovery stop in halt mode.
-		if(u8_tanashin_trans_timer<(TIM_TANA_DELAY_STOP-TIM_TANA_DLY_SW_ACT))
+		if(u8_tanashin_trans_timer<(TIM_TANA_DLY_STOP-TIM_TANA_DLY_SW_ACT))
 		{
 			// Initial time for activating mode transition to STOP has passed.
 			// Release solenoid while waiting for transport to transition to STOP.
@@ -390,12 +401,13 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 		// Transitioning to STOP mode.
 		if(u8_tanashin_trans_timer==0)
 		{
+			// Transition is done.
 			// Deactivate solenoid.
 			SOLENOID_OFF;
 			// Set stable state.
 			u8_tanashin_mode = TTR_TANA_MODE_STOP;
 		}
-		else if(u8_tanashin_trans_timer<(TIM_TANA_DELAY_STOP-TIM_TANA_DLY_SW_ACT))
+		else if(u8_tanashin_trans_timer<(TIM_TANA_DLY_STOP-TIM_TANA_DLY_SW_ACT))
 		{
 			// Deactivate solenoid and wait for transition to happen.
 			SOLENOID_OFF;
@@ -406,6 +418,7 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 		// Transitioning to PLAY mode.
 		if(u8_tanashin_trans_timer==0)
 		{
+			// Transition is done.
 			// Deactivate solenoid.
 			SOLENOID_OFF;
 			// Set stable state.
@@ -439,6 +452,7 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 		// Transitioning to RECORD mode.
 		if(u8_tanashin_trans_timer==0)
 		{
+			// Transition is done.
 			// Deactivate solenoid.
 			SOLENOID_OFF;
 			// Set stable state.
@@ -472,6 +486,7 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 		// Transitioning to FAST WIND mode.
 		if(u8_tanashin_trans_timer==0)
 		{
+			// Transition is done.
 			// Deactivate solenoid.
 			SOLENOID_OFF;
 			// Check takeup direction for FAST WIND.
@@ -538,6 +553,7 @@ void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *
 		UART_add_flash_string((uint8_t *)cch_halt_stop3);
 		UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
+		u8_tanashin_target_mode = TTR_TANA_MODE_HALT;
 		u8_tanashin_mode = TTR_TANA_MODE_HALT;
 		u8_tanashin_error += TTR_ERR_LOGIC_FAULT;
 	}
@@ -633,8 +649,16 @@ void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *
 		// Transport in transitioning through states.
 		// Count down mode transition timer.
 		u8_tanashin_trans_timer--;
+		// Reset idle timer.
+		u16_tanashin_idle_time = 0;
 		// Mode transition cyclogram.
 		mech_tanashin_cyclogram(in_sws);
+		// Check if transition just finished.
+		if(u8_tanashin_trans_timer==0)
+		{
+			// Reset tachometer timer.
+			(*tacho) = 0;
+		}
 	}
 #ifdef UART_TERM
 	if((u8_tanashin_trans_timer>0)||(mech_tanashin_user_to_transport((*usr_mode))!=u8_tanashin_target_mode)||(u8_tanashin_target_mode!=u8_tanashin_mode))

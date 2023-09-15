@@ -10,8 +10,8 @@
 #define TIM_42602_DLY_WAIT_TAKEUP	128		// 256 ms (end of pinch engage selection range, start of "gray zone")
 #define TIM_42602_DLY_TAKEUP_DIR	144		// 288 ms (start of takeup direction selection range)
 #define TIM_42602_DLY_WAIT_MODE		184		// 368 ms (end of takeup direction selection range, waiting for transition to active mode)
-#define TIM_42602_DELAY_RUN			210		// 420 ms (time for full transition STOP -> ACTIVE)
-#define TIM_42602_DELAY_STOP		160		// 320 ms (time for full transition ACTIVE -> STOP)
+#define TIM_42602_DLY_ACTIVE		210		// 420 ms (time for full transition STOP -> ACTIVE)
+#define TIM_42602_DLY_WAIT_STOP		160		// 320 ms (time for full transition ACTIVE -> STOP)
 
 // Maximum wait for next tacho tick for various modes, contained in [u8_tacho_timer].
 // Each tick = 20 ms real time.
@@ -35,24 +35,26 @@ enum
 	TTR_42602_SUBMODE_TO_STOP,		// 2 Start transition from active mode to STOP
 	TTR_42602_SUBMODE_WAIT_STOP,	// 3 Waiting for mechanism to reach STOP sensor
 	TTR_42602_MODE_STOP,			// 4 Stable STOP state
-	TTR_42602_SUBMODE_TO_START,		// 5 Start transition from STOP to any active mode
-	TTR_42602_SUBMODE_WAIT_DIR,		// 6 Waiting for pinch direction change range
-	TTR_42602_SUBMODE_HD_DIR_SEL,	// 7 Head/pinch direction selection range
-	TTR_42602_SUBMODE_WAIT_PINCH,	// 8 Waiting for pinch engage range
-	TTR_42602_SUBMODE_PINCH_SEL,	// 9 Choose to engage pinch roller
-	TTR_42602_SUBMODE_WAIT_TAKEUP,	// 10 Waiting for takeup direction change range
-	TTR_42602_SUBMODE_TU_DIR_SEL,	// 11 Takeup direction selection range
-	TTR_42602_SUBMODE_WAIT_RUN,		// 12 Waiting for mechanism to stabilize
-	TTR_42602_MODE_PB_FWD,			// 13 Stable PLAYBACK in forward direction
-	TTR_42602_MODE_PB_REV,			// 14 Stable PLAYBACK in reverse direction
-	TTR_42602_MODE_RC_FWD,			// 15 Stable RECORD in forward direction
-	TTR_42602_MODE_RC_REV,			// 16 Stable RECORD in reverse direction
-	TTR_42602_MODE_FW_FWD,			// 17 Stable FAST WIND in forward direction, head/pinch in forward direction
-	TTR_42602_MODE_FW_REV,			// 18 Stable FAST WIND in reverse direction, head/pinch in forward direction
-	TTR_42602_MODE_FW_FWD_HD_REV,	// 19 Stable FAST WIND in forward direction, head/pinch in reverse direction
-	TTR_42602_MODE_FW_REV_HD_REV,	// 20 Stable FAST WIND in reverse direction, head/pinch in reverse direction
-	TTR_42602_MODE_HALT,			// 21 Permanent halt due to an error
-	TTR_42602_MODE_MAX				// 22 Mode selector limit
+	TTR_42602_SUBMODE_TO_ACTIVE,	// 5 Start transition from STOP to any active mode
+	TTR_42602_SUBMODE_ACT,			// 6 Waiting for main cyclogram to start
+	TTR_42602_SUBMODE_WAIT_DIR,		// 7 Waiting for pinch direction change range
+	TTR_42602_SUBMODE_HD_DIR_SEL,	// 8 Head/pinch direction selection range
+	TTR_42602_SUBMODE_WAIT_PINCH,	// 9 Waiting for pinch engage range
+	TTR_42602_SUBMODE_PINCH_SEL,	// 10 Choose to engage pinch roller
+	TTR_42602_SUBMODE_WAIT_TAKEUP,	// 11 Waiting for takeup direction change range
+	TTR_42602_SUBMODE_TU_DIR_SEL,	// 12 Takeup direction selection range
+	TTR_42602_SUBMODE_WAIT_RUN,		// 13 Waiting for mechanism to stabilize
+	TTR_42602_MODE_PB_FWD,			// 14 Stable PLAYBACK in forward direction
+	TTR_42602_MODE_PB_REV,			// 15 Stable PLAYBACK in reverse direction
+	TTR_42602_MODE_RC_FWD,			// 16 Stable RECORD in forward direction
+	TTR_42602_MODE_RC_REV,			// 17 Stable RECORD in reverse direction
+	TTR_42602_MODE_FW_FWD,			// 18 Stable FAST WIND in forward direction, head/pinch in forward direction
+	TTR_42602_MODE_FW_REV,			// 19 Stable FAST WIND in reverse direction, head/pinch in forward direction
+	TTR_42602_MODE_FW_FWD_HD_REV,	// 20 Stable FAST WIND in forward direction, head/pinch in reverse direction
+	TTR_42602_MODE_FW_REV_HD_REV,	// 21 Stable FAST WIND in reverse direction, head/pinch in reverse direction
+	TTR_42602_SUBMODE_TO_HALT,		// 22 Start transition to HALT
+	TTR_42602_MODE_HALT,			// 23 Permanent halt due to an error
+	TTR_42602_MODE_MAX				// 24 Mode selector limit
 };
 
 extern volatile const uint8_t ucaf_crp42602y_mech[];
@@ -62,7 +64,7 @@ void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transpor
 void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);		// Start transition from current mode to target mode
 void mech_crp42602y_user2target(uint8_t *usr_mode, uint8_t *play_dir);	// Take in user desired mode and set new target mode
 void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Control mechanism in static mode (not transitioning between modes)
-void mech_crp42602y_cyclogram();										// Transition through modes, timing solenoid
+void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir);		// Transition through modes, timing solenoid
 void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine for CRP42602Y tape mech
 uint8_t mech_crp42602y_get_mode();										// Get user-level mode of the transport
 uint8_t mech_crp42602y_get_transition();								// Get transition timer count

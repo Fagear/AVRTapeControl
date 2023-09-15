@@ -37,7 +37,7 @@
 #define BTN_EN_INTR1		PCMSK1|=(1<<PCINT8)|(1<<PCINT9)|(1<<PCINT10)|(1<<PCINT11)|(1<<PCINT12)|(1<<PCINT13)
 #define BTN_EN_INTR2		PCICR|=(1<<PCIE1)
 #define BTN_DIS_INTR2		PCICR&=~(1<<PCIE1)
-#define BTN_INT				PCINT1_vect
+#define BTN_INT				PCINT1_vect					// Pin change interrupt
 
 // Sensors and switches.
 #define SW_PORT				PORTD
@@ -56,7 +56,7 @@
 #define SW_EN_INTR1			PCMSK2|=(1<<PCINT19)|(1<<PCINT20)|(1<<PCINT21)|(1<<PCINT22)
 #define SW_EN_INTR2			PCICR|=(1<<PCIE2)
 #define SW_DIS_INTR2		PCICR&=~(1<<PCIE2)
-#define SW_INT				PCINT2_vect
+#define SW_INT				PCINT2_vect					// Pin change interrupt
 
 // Playback mute output control.
 #define MUTE_EN_PORT		PORTD

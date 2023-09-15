@@ -20,8 +20,12 @@
 #include "drv_cpu.h"
 #include "drv_eeprom.h"
 #include "drv_io.h"
+#ifdef SUPP_CRP42602Y_MECH
 #include "mech_crp42602y.h"
+#endif /* SUPP_CRP42602Y_MECH */
+#ifdef SUPP_TANASHIN_MECH
 #include "mech_tanashin.h"
+#endif /* SUPP_TANASHIN_MECH */
 
 // Flags for [u8i_interrupts] and [u8_buf_interrupts].
 #define INTR_SYS_TICK		(1<<0)

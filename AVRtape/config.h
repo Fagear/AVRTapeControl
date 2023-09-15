@@ -2,7 +2,7 @@
  * config.h
  *
  * Created:			2021-04-13 14:49:47
- * Modified:		2021-04-13
+ * Modified:		2023-09-15
  * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
  * Description:		Configuration for drivers
  *
@@ -18,10 +18,14 @@
 // Enable UART debug output (slows down execution and takes up ROM and RAM).
 #define UART_TERM
 
-#define SETTINGS_SIZE		11	// Number of bytes for full [settings_data] union.
+// Transport support.
+#define SUPP_CRP42602Y_MECH     // CRP42602Y mechanism from AliExpress (LG-like)
+#define SUPP_TANASHIN_MECH      // Tanashin-clone
 
-#define UART_IN_LEN			8		// UART receiving buffer length.
-#define UART_OUT_LEN		768		// UART transmitting buffer length.
+#define SETTINGS_SIZE		11	// Number of bytes for full [settings_data] union
+
+#define UART_IN_LEN			8		// UART receiving buffer length
+#define UART_OUT_LEN		768		// UART transmitting buffer length
 #define UART_SPEED			UART_BAUD_125k
 
 // Set target size of saving/restoring block for EEPROM driver.

@@ -2,7 +2,7 @@
  * avrtape.c
  *
  * Created:			2021-03-16 13:17:21
- * Modified:		2023-09-07
+ * Modified:		2023-09-15
  * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
  * Description:		Main tape transport logic implementation
  *
@@ -770,7 +770,7 @@ void process_user(void)
 		else
 		{
 			// Two playback buttons (for each direction).
-			if((kbd_state&USR_BTN_RECORD)!=0)
+			if((kbd_state&USR_BTN_RECORD)==0)
 			{
 				// Record is not requested or TTR is not in STOP.
 				if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
@@ -877,17 +877,17 @@ void mech_log()
 		if(u8_user_mode==USR_MODE_PLAY_FWD)
 		{
 			// Preset time for full cycle from STOP to PLAY.
-			u8_transition_timer = TIM_TANA_DLY_PB_WAIT;
+			//u8_transition_timer = TIM_TANA_DLY_PB_WAIT;
 		}
 		else if(u8_user_mode==USR_MODE_FWIND_REV)
 		{
 			// Preset time for full cycle from PLAY to FAST WIND.
-			u8_transition_timer = TIM_TANA_DLY_FWIND_WAIT;
+			//u8_transition_timer = TIM_TANA_DLY_FWIND_WAIT;
 		}
 		else if(u8_user_mode==USR_MODE_FWIND_FWD)
 		{
 			// Preset time for full cycle from PLAY to FAST WIND.
-			u8_transition_timer = TIM_TANA_DLY_FWIND_WAIT;
+			//u8_transition_timer = TIM_TANA_DLY_FWIND_WAIT;
 		}
 		u8_user_mode = USR_MODE_STOP;
 	}
@@ -902,7 +902,7 @@ void mech_log()
 		UART_add_string(u8a_buf);
 #endif /* UART_TERM */
 
-		if(u8_user_mode==USR_MODE_PLAY_FWD)
+		/*if(u8_user_mode==USR_MODE_PLAY_FWD)
 		{
 			if(u8_transition_timer>(TIM_TANA_DLY_PB_WAIT-TIM_TANA_DLY_SW_ACT))
 			{
@@ -937,7 +937,7 @@ void mech_log()
 				// Disable solenoid for the reset of the FAST WIND selection cycle.
 				SOLENOID_OFF;
 			}
-		}
+		}*/
 		u8_transition_timer--;
 		/*if(u8_transition_timer<(u8_dbg_timer-TIM_TANASHIN_DLY_SW_ACT))
 		{
@@ -988,17 +988,21 @@ int main(void)
 #ifdef UART_TERM
 	// Output startup messages.
 	UART_add_flash_string((uint8_t *)cch_startup_1);
+	UART_add_flash_string((uint8_t *)ucaf_author); UART_add_flash_string((uint8_t *)cch_endl); UART_dump_out();
 	UART_add_flash_string((uint8_t *)ucaf_info); UART_add_flash_string((uint8_t *)cch_endl);
 	UART_add_flash_string((uint8_t *)ucaf_version); UART_add_string(" ["); UART_add_flash_string((uint8_t *)ucaf_compile_date); UART_add_string(", "); UART_add_flash_string((uint8_t *)ucaf_compile_time); UART_add_string("]"); UART_add_flash_string((uint8_t *)cch_endl);
-	UART_add_flash_string((uint8_t *)ucaf_author); UART_add_flash_string((uint8_t *)cch_endl); UART_dump_out();
+#ifdef SUPP_CRP42602Y_MECH
 	if(u8_mech_type==TTR_TYPE_CRP42602Y)
 	{
 		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_crp42602y_mech); UART_add_flash_string((uint8_t *)cch_endl);
 	}
-	else if(u8_mech_type==TTR_TYPE_TANASHIN)
+#endif /* SUPP_CRP42602Y_MECH */
+#ifdef SUPP_TANASHIN_MECH
+	if(u8_mech_type==TTR_TYPE_TANASHIN)
 	{
 		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_tanashin_mech); UART_add_flash_string((uint8_t *)cch_endl);
 	}
+#endif /* SUPP_TANASHIN_MECH */
 	UART_add_flash_string((uint8_t *)cch_endl); UART_dump_settings(u16_features); UART_add_flash_string((uint8_t *)cch_endl);
 	UART_dump_out();
 #endif /* UART_TERM */
@@ -1068,6 +1072,8 @@ int main(void)
 				// 50 Hz event, 20 ms period.
 				// Scan user keys.
 				keys_simple_scan();
+				// Scan switches and sensors.
+				switches_scan();
 				// Check tachometer.
 				poll_tacho();
 				// Process user input.
@@ -1087,25 +1093,27 @@ int main(void)
 				// ~265 us @ 1 MHz (without UART logging)
 				u8_tasks&=~TASK_500HZ;
 				// 500 Hz event, 2 ms period.
-				// Scan switches and sensors.
-				switches_scan();
 				u8_old_dir = u8_last_play_dir;
 				// Update transport state machine and solenoid action.
 				if(u8_mech_type==TTR_TYPE_CRP42602Y)
 				{
+#ifdef SUPP_CRP42602Y_MECH
 					// Processing for CRP42602Y mechanism.
 					mech_crp42602y_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
 					u8_mech_mode = mech_crp42602y_get_mode();
 					u8_transition_timer = mech_crp42602y_get_transition();
 					u8_transport_error = mech_crp42602y_get_error();
+#endif /* SUPP_CRP42602Y_MECH */
 				}
 				else if(u8_mech_type==TTR_TYPE_TANASHIN)
 				{
+#ifdef SUPP_TANASHIN_MECH
 					// Processing for Tanashin-clone mechanism.
 					mech_tanashin_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
 					u8_mech_mode = mech_tanashin_get_mode();
 					u8_transition_timer = mech_tanashin_get_transition();
 					u8_transport_error = mech_tanashin_get_error();
+#endif /* SUPP_TANASHIN_MECH */
 				}
 				else
 				{
