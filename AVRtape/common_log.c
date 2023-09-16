@@ -1,10 +1,3 @@
-/*
- * common_log.c
- *
- * Created: 07.09.2023 17:14:47
- *  Author: kryukov
- */
-
 #include "common_log.h"
 
 //-------------------------------------- Print user mode alias.

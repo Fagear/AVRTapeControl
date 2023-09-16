@@ -5,9 +5,10 @@ uint8_t u8_tanashin_mode=TTR_TANA_MODE_STOP;		// Current tape transport mode (tr
 uint8_t u8_tanashin_error=TTR_ERR_NONE;				// Last transport error
 uint8_t u8_tanashin_trans_timer=0;					// Solenoid holding timer
 uint16_t u16_tanashin_idle_time=0;					// Timer for disabling capstan motor
+uint8_t u8_tanashin_retries=0;						// Number of retries beforce transport halts
 
 #ifdef UART_TERM
-char u8a_buf[48];									// Buffer for UART debug messages
+char u8a_tanashin_buf[32];							// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 volatile const uint8_t ucaf_tanashin_mech[] PROGMEM = "Tanashin-clone mechanism";
@@ -130,6 +131,11 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 		}
+	}
+	else if(u8_tanashin_target_mode==TTR_TANA_MODE_HALT)
+	{
+		// Target mode: full stop in HALT.
+		u8_tanashin_mode = TTR_TANA_MODE_HALT;
 	}
 	else
 	{
@@ -279,7 +285,7 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 			// Correct logic mode.
 			u8_tanashin_mode = TTR_TANA_MODE_STOP;
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
-			u8_tanashin_trans_timer = 0;
+			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
 		}
@@ -331,6 +337,7 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 			// Correct logic mode.
 			u8_tanashin_mode = TTR_TANA_MODE_STOP;
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
+			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
 		}
@@ -351,30 +358,23 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 		{
 			// Transition is done.
 			// Set stable state.
-			u8_tanashin_mode = TTR_TANA_MODE_STOP;
-		}
-	}
-	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_HALT)
-	{
-		// Activate solenoid to start transition to HALT.
-		SOLENOID_ON;
-		u8_tanashin_mode = TTR_TANA_MODE_HALT;
-	}
-	else if(u8_tanashin_mode==TTR_TANA_MODE_HALT)
-	{
-		// Desired mode: recovery stop in halt mode.
-		if(u8_tanashin_trans_timer<(TIM_TANA_DLY_STOP-TIM_TANA_DLY_SW_ACT))
-		{
-			// Initial time for activating mode transition to STOP has passed.
-			// Release solenoid while waiting for transport to transition to STOP.
-			SOLENOID_OFF;
+			u8_tanashin_mode = u8_tanashin_target_mode;
 		}
 	}
 	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_STOP)
 	{
+		// Turn on capstan motor.
+		CAPSTAN_ON;
 		// Activate solenoid to start transition to STOP.
 		SOLENOID_ON;
-		u8_tanashin_mode = TTR_TANA_SUBMODE_WAIT_STOP;
+		if(u8_tanashin_trans_timer<(TIM_TANA_DLY_STOP-TIM_TANA_DLY_SW_ACT))
+		{
+			// Initial time for activating mode transition to STOP has passed.
+			// Deactivate solenoid.
+			SOLENOID_OFF;
+			// Wait for transport to transition to STOP.
+			u8_tanashin_mode = TTR_TANA_SUBMODE_WAIT_STOP;
+		}
 	}
 	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_PLAY)
 	{
@@ -396,21 +396,33 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 		SOLENOID_ON;
 		u8_tanashin_mode = TTR_TANA_SUBMODE_WAIT_TAKEUP;
 	}
+	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_TO_HALT)
+	{
+		// Activate solenoid to start transition to HALT.
+		SOLENOID_ON;
+		u8_tanashin_mode = TTR_TANA_MODE_HALT;
+	}
+	else if(u8_tanashin_mode==TTR_TANA_MODE_HALT)
+	{
+		// Desired mode: recovery stop in halt mode.
+		if(u8_tanashin_trans_timer<(TIM_TANA_DLY_STOP-TIM_TANA_DLY_SW_ACT))
+		{
+			// Initial time for activating mode transition to STOP has passed.
+			// Release solenoid while waiting for transport to transition to STOP.
+			SOLENOID_OFF;
+		}
+	}
 	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_WAIT_STOP)
 	{
 		// Transitioning to STOP mode.
+		// Deactivate solenoid.
+		SOLENOID_OFF;
 		if(u8_tanashin_trans_timer==0)
 		{
 			// Transition is done.
-			// Deactivate solenoid.
-			SOLENOID_OFF;
 			// Set stable state.
 			u8_tanashin_mode = TTR_TANA_MODE_STOP;
-		}
-		else if(u8_tanashin_trans_timer<(TIM_TANA_DLY_STOP-TIM_TANA_DLY_SW_ACT))
-		{
-			// Deactivate solenoid and wait for transition to happen.
-			SOLENOID_OFF;
+			// TODO: check mechanical STOP sensor
 		}
 	}
 	else if(u8_tanashin_mode==TTR_TANA_SUBMODE_WAIT_PLAY)
@@ -663,9 +675,9 @@ void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *
 #ifdef UART_TERM
 	if((u8_tanashin_trans_timer>0)||(mech_tanashin_user_to_transport((*usr_mode))!=u8_tanashin_target_mode)||(u8_tanashin_target_mode!=u8_tanashin_mode))
 	{
-		sprintf(u8a_buf, "MODE|>%03u<|%01u>%01u>%01u|%02x\n\r",
+		sprintf(u8a_tanashin_buf, "MODE|>%03u<|%01u>%01u>%01u|%02x\n\r",
 				u8_tanashin_trans_timer, (*usr_mode), u8_tanashin_target_mode, u8_tanashin_mode, in_sws);
-		UART_add_string(u8a_buf);
+		UART_add_string(u8a_tanashin_buf);
 	}
 #endif /* UART_TERM */
 }

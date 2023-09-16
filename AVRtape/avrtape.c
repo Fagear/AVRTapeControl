@@ -1,13 +1,3 @@
-/*
- * avrtape.c
- *
- * Created:			2021-03-16 13:17:21
- * Modified:		2023-09-15
- * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
- * Description:		Main tape transport logic implementation
- *
- */
-
 #include "avrtape.h"
 
 volatile uint8_t u8i_interrupts=0;			// Deferred interrupts call flags (non-buffered)
@@ -31,9 +21,6 @@ uint8_t u8_last_play_dir=PB_DIR_FWD;		// Last playback direction
 uint8_t u8_transport_error=TTR_ERR_NONE;	// Last transport error
 uint16_t u16_features=TTR_REV_DEFAULT;		// Feature settings
 
-extern uint16_t u16_crp42602y_idle_time;
-extern uint8_t u8_crp42602y_mode;
-
 uint8_t u8a_spi_buf[SPI_IDX_MAX];			// Data to send via SPI bus
 
 #ifdef UART_TERM
@@ -56,7 +43,7 @@ ISR(SYST_INT, ISR_NAKED)
 	INTR_OUT;
 }
 
-//-------------------------------------- Pin Change Interrupt Request 1
+//-------------------------------------- Pin Change Interrupt Request 1.
 ISR(BTN_INT, ISR_NAKED)
 {
 	// Used only to wakeup MCU.
@@ -64,7 +51,7 @@ ISR(BTN_INT, ISR_NAKED)
 	INTR_OUT_S;
 }
 
-//-------------------------------------- Pin Change Interrupt Request 2
+//-------------------------------------- Pin Change Interrupt Request 2.
 ISR(SW_INT, ISR_NAKED)
 {
 	// Used only to wakeup MCU.
@@ -81,7 +68,7 @@ ISR(SPI_INT, ISR_NAKED)
 }
 
 #ifdef UART_TERM
-//-------------------------------------- USART, Tx Complete
+//-------------------------------------- USART, Tx Complete.
 ISR(UART_TX_INT, ISR_NAKED)
 {
 	INTR_IN;
@@ -538,7 +525,8 @@ inline void update_indicators(void)
 				u8a_spi_buf[SPI_IDX_IND] &= ~IND_PLAY;
 			}
 			// Playback direction indicator.
-			if((u8_mech_mode==USR_MODE_PLAY_REV)||(u8_mech_mode==USR_MODE_REC_REV))
+			//if((u8_mech_mode==USR_MODE_PLAY_REV)||(u8_mech_mode==USR_MODE_REC_REV))
+			if(u8_last_play_dir!=PB_DIR_FWD)
 			{
 				u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_DIR;
 			}
@@ -1089,11 +1077,13 @@ int main(void)
 			}
 			if((u8_tasks&TASK_500HZ)!=0)
 			{
+#ifdef UART_TERM
 				uint8_t u8_old_dir;
 				// ~265 us @ 1 MHz (without UART logging)
 				u8_tasks&=~TASK_500HZ;
 				// 500 Hz event, 2 ms period.
 				u8_old_dir = u8_last_play_dir;
+#endif /* UART_TERM */
 				// Update transport state machine and solenoid action.
 				if(u8_mech_type==TTR_TYPE_CRP42602Y)
 				{

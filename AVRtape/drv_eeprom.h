@@ -1,24 +1,40 @@
-/*
- * drv_eeprom.h
- *
- * Created:			2010-09-07
- * Modified:		2021-04-13
- * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
- * Description:		EEPROM driver for AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
- *					The driver allows single-byte operations with EEPROM (erase/write/read).
- *					The driver also allows to read and write segments of data.
- *					This driver automatically adapts to different data target sizes and EEPROM size of the MCU (you have to set [EEPROM_TARGET_SIZE]).
- *					This driver handles automatic boot-up data search and load via first [EEPROM_START_MARKER] byte in data.
- *					This driver can detect corruption in the data with help of CRC-8 algorithm (at the end of data).
- *					This driver implements several wear-leveling techniques: moving active segment around all available memory, inverting bytes (zeros are more often in data than 0xFF), data-dependent writes and erases.
- *					There are two variants of interrupt-sensitive functions: ones with "_intfree" must be used after you turn off all interrupts, other functions will deal with interrupts themselves.
- *					It is NOT RECOMMENDED to use any of the functions of this driver in an interrupt routines.
- * Supported MCUs:	ATmega32(A), ATmega88(A/PA), ATmega168(A/PA), ATmega328(P).
- *				
- */
+/**************************************************************************************************************************************************************
+drv_eeprom.h
 
-#ifndef FGR_DRV_EEPROM
-#define FGR_DRV_EEPROM
+Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Created: 2010-09-07
+
+EEPROM driver for AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
+The driver allows single-byte operations with EEPROM (erase/write/read).
+The driver also allows to read and write segments of data.
+This driver automatically adapts to different data target sizes and EEPROM size of the MCU (you have to set [EEPROM_TARGET_SIZE]).
+This driver handles automatic boot-up data search and load via first [EEPROM_START_MARKER] byte in data.
+This driver can detect corruption in the data with help of CRC-8 algorithm (at the end of data, CRC calculation functions are in a separate file).
+This driver implements several wear-leveling techniques: moving active segment around all available memory,
+inverting bytes (zeros are more often in data than 0xFF), data-dependent writes and erases.
+There are two variants of interrupt-sensitive functions: ones with "_intfree" must be used after you turn off all interrupts,
+other functions will deal with interrupts themselves.
+It is NOT RECOMMENDED to use any of the functions of this driver in an interrupt routines.
+
+Supported MCUs:	ATmega32(A), ATmega88(A/PA), ATmega168(A/PA), ATmega328(P).
+
+**************************************************************************************************************************************************************/
+
+#ifndef DRV_EEPROM_H_
+#define DRV_EEPROM_H_
 
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
@@ -243,4 +259,4 @@ void EEPROM_write_segment_intfree(uint8_t *, uint8_t, uint8_t);
 #endif	/*EEP_16BIT_ADDR*/
 void EEPROM_goto_next_segment(void);
 
-#endif /* FGR_DRV_EEPROM */
+#endif /* DRV_EEPROM_H_ */

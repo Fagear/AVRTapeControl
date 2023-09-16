@@ -1,3 +1,29 @@
+/**************************************************************************************************************************************************************
+mech_crp42602y.h
+
+Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Created: 2023-09-07
+
+State machine for CRP42602Y tape transport (TTR) mechanism from AliExpress. Looks like some mechanisms used in LG tape machines.
+One motor belt-driven (for capstan, take-up and mode switching), one solenoid (for mode switching).
+This mechanism has two capstans and supports reverse operations.
+Also this mechanism has takeup tachometer sensor on drive pulley and it pulses in STOP.
+
+**************************************************************************************************************************************************************/
+
 #include "common_log.h"
 
 // Timer marks for various modes for CRP42602Y mechanism, contained in [u8_crp42602y_trans_timer].
@@ -59,9 +85,9 @@ enum
 
 extern volatile const uint8_t ucaf_crp42602y_mech[];
 
-uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);	// Convert user mode to transport mode for CRP42602Y mechanism
+uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);		// Convert user mode to transport mode for CRP42602Y mechanism
 void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
-void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);		// Start transition from current mode to target mode
+void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);	// Start transition from current mode to target mode
 void mech_crp42602y_user2target(uint8_t *usr_mode, uint8_t *play_dir);	// Take in user desired mode and set new target mode
 void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Control mechanism in static mode (not transitioning between modes)
 void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir);		// Transition through modes, timing solenoid

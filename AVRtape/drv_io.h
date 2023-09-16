@@ -1,12 +1,25 @@
-/*
- * drv_io.h
- *
- * Created:			2021-04-04 19:27:58
- * Modified:		2021-04-13
- * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
- * Description:		Hardware defines (pseudo-HAL) and setup routines
- *
- */
+/**************************************************************************************************************************************************************
+drv_io.h
+
+Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Created: 2021-04-04
+
+Hardware defines (pseudo-HAL) and setup routines.
+
+**************************************************************************************************************************************************************/
 
 #ifndef DRV_IO_H_
 #define DRV_IO_H_
@@ -182,13 +195,6 @@ inline void HW_init(void)
 	UART_set_speed(UART_SPEED);
 	UART_enable();
 #endif /* UART_TERM */
-
-	// Timer for PWM output.
-	/*OCR1AL = 128;
-	TCNT1 = 0;
-	TCCR1A = (1<<WGM10)|(1<<COM1A1)|(1<<COM1A0);	// Phase-correct 8-bit PWM
-	TCCR1B |= (1<<CS11);					// clk/8
-	*/
 }
 
 #endif /* DRV_IO_H_ */

@@ -1,13 +1,26 @@
-/*
- * config.h
- *
- * Created:			2021-04-13 14:49:47
- * Modified:		2023-09-15
- * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
- * Description:		Configuration for drivers
- *
- */
+/**************************************************************************************************************************************************************
+config.h
 
+Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Created: 2021-04-13
+
+Configuration file.
+Defines/switches for configuring compile-time options.
+
+**************************************************************************************************************************************************************/
 
 #ifndef CONFIG_H_
 #define CONFIG_H_
@@ -19,10 +32,10 @@
 #define UART_TERM
 
 // Transport support.
-#define SUPP_CRP42602Y_MECH     // CRP42602Y mechanism from AliExpress (LG-like)
-#define SUPP_TANASHIN_MECH      // Tanashin-clone
+#define SUPP_CRP42602Y_MECH			// CRP42602Y mechanism from AliExpress (LG-like)
+//#define SUPP_TANASHIN_MECH			// Tanashin-clone
 
-#define SETTINGS_SIZE		11	// Number of bytes for full [settings_data] union
+#define SETTINGS_SIZE		11		// Number of bytes for full [settings_data] union
 
 #define UART_IN_LEN			8		// UART receiving buffer length
 #define UART_OUT_LEN		768		// UART transmitting buffer length

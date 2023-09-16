@@ -1,21 +1,34 @@
-/*
- * drv_uart.h
- *
- * Created:			2009-12-20
- * Modified:		2021-04-13
- * Author:			Maksim Kryukov aka Fagear (fagear@mail.ru)
- * Description:		UART driver for AVR MCUs and AVRStudio/WinAVR/AtmelStudio compilers.
- *					The driver is buffer-based, both on transmit and receive sides.
- *					The driver is targeted for real-time systems with no wait loops inside it.
- *					Buffer length is configurable via defines [UART_IN_LEN] and [UART_OUT_LEN].
- *					The driver can set UART speed on-the-fly, using [UART_BAUD_xxxx] defines in [UART_set_speed()]
- *					and [F_CPU] define for CPU clock (in Hz).
- * Supported MCUs:	ATmega32, ATmega32A, ATmega168PA, ATmega328, ATmega328P.
- *				
- */
+/**************************************************************************************************************************************************************
+drv_uart.h
 
-#ifndef FR_DRV_UART
-#define FR_DRV_UART
+Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Created: 2009-12-20
+
+UART driver for AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
+The driver is buffer-based, both on transmit and receive sides.
+The driver is targeted for real-time systems with no wait loops inside it.
+Buffer length is configurable via defines [UART_IN_LEN] and [UART_OUT_LEN].
+The driver can set UART speed on-the-fly, using [UART_BAUD_xxxx] defines in [UART_set_speed()] and [F_CPU] define for CPU clock (in Hz).
+
+Supported MCUs:	ATmega32, ATmega32A, ATmega168PA, ATmega328, ATmega328P.
+
+**************************************************************************************************************************************************************/
+
+#ifndef DRV_UART_H_
+#define DRV_UART_H_
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -159,4 +172,4 @@ uint16_t UART_get_sending_number(void);			// Get number of not transmitted bytes
 void UART_flush_in(void);						// Clear out receiving buffer.
 void UART_dump_out(void);						// Dump all bytes one-by-one from transmitting buffer to UART (clear space in transmitting buffer).
 
-#endif /* FR_DRV_UART */
+#endif /* DRV_UART_H_ */

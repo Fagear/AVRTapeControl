@@ -1,10 +1,3 @@
-/*
- * strings.c
- *
- * Created: 07.09.2023 17:29:20
- *  Author: kryukov
- */
-
 #include "strings.h"
 
 #ifdef UART_TERM

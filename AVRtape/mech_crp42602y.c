@@ -8,7 +8,7 @@ uint16_t u16_crp42602y_idle_time=0;						// Timer for disabling capstan motor
 uint8_t u8_crp42602y_retries=0;							// Number of retries beforce transport halts
 
 #ifdef UART_TERM
-char u8a_buf[48];										// Buffer for UART debug messages
+char u8a_crp42602y_buf[8];								// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 volatile const uint8_t ucaf_crp42602y_mech[] PROGMEM = "CRP42602Y mechanism";
@@ -140,7 +140,7 @@ void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mod
 	}
 	else if(u8_crp42602y_target_mode==TTR_42602_MODE_HALT)
 	{
-		// Target mode: full stop.
+		// Target mode: full stop in HALT.
 		u8_crp42602y_mode = TTR_42602_MODE_HALT;
 	}
 	else
@@ -456,7 +456,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 			// Correct logic state to correspond with reality.
 			u8_crp42602y_mode = TTR_42602_MODE_STOP;
 			u8_crp42602y_target_mode = TTR_42602_MODE_STOP;
-			u8_crp42602y_trans_timer = 0;
+			u8_crp42602y_trans_timer = TIM_42602_DLY_WAIT_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
 		}
@@ -552,7 +552,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 			// Correct logic mode.
 			u8_crp42602y_mode = TTR_42602_MODE_STOP;
 			u8_crp42602y_target_mode = TTR_42602_MODE_STOP;
-			u8_crp42602y_trans_timer = 0;
+			u8_crp42602y_trans_timer = TIM_42602_DLY_WAIT_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
 		}
@@ -573,12 +573,13 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 		{
 			// Transition is done.
 			// Save new transport state.
-			//u8_crp42602y_mode = TTR_42602_MODE_STOP;
 			u8_crp42602y_mode = u8_crp42602y_target_mode;
 		}
 	}
 	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_TO_STOP)
 	{
+		// Turn on capstan motor.
+		CAPSTAN_ON;
 		// Pull solenoid in to initiate mode change to STOP.
 		SOLENOID_ON;
 		if(u8_crp42602y_trans_timer<=(TIM_42602_DLY_WAIT_STOP-TIM_42602_DLY_STOP))
@@ -641,8 +642,8 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 #ifdef UART_TERM
 				UART_add_flash_string((uint8_t *)cch_stop_active); UART_add_flash_string((uint8_t *)cch_endl);
 				UART_add_flash_string((uint8_t *)cch_mode_failed);
-				sprintf(u8a_buf, " %01u\n\r", u8_crp42602y_retries);
-				UART_add_string(u8a_buf);
+				sprintf(u8a_crp42602y_buf, " %01u\n\r", u8_crp42602y_retries);
+				UART_add_string(u8a_crp42602y_buf);
 #endif /* UART_TERM */
 				// Increase number of retries before failing.
 				u8_crp42602y_retries++;
@@ -670,6 +671,7 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 	}
 	if((u8_crp42602y_target_mode>=TTR_42602_MODE_PB_FWD)&&(u8_crp42602y_target_mode<=TTR_42602_MODE_FW_REV_HD_REV))
 	{
+		// Target mode: any active mode (PLAYBACK/RECORD/FAST WIND).
 		uint8_t u8_inv_timer;
 		if(TIM_42602_DLY_ACTIVE>=u8_crp42602y_trans_timer)
 		{
@@ -858,6 +860,7 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 		UART_add_flash_string((uint8_t *)cch_halt_stop3);
 		UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
+		u8_crp42602y_target_mode = TTR_42602_MODE_HALT;
 		u8_crp42602y_mode = TTR_42602_MODE_HALT;
 		u8_crp42602y_error += TTR_ERR_LOGIC_FAULT;
 	}

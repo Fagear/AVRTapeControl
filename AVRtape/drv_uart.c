@@ -219,6 +219,7 @@ void UART_flush_in(void)
 {
 	uint8_t u8_data;
 	while(UART_STATE_REG&UART_RX_COMPLETE) u8_data=UART_DATA_REG;
+	(void)u8_data;	// Suppress gcc "not used" warning.
 	cli();
 	p_receive=0;
 	p_read=0;
