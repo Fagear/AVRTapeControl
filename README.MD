@@ -24,7 +24,7 @@ Desired mode is set through buttons (one per mode), MCU operates a solenoid that
 
 Sorry, no electrical schematics at the moment...
 
-MCU can be clocked from internal 8 MHz RC-oscillator but external 8 MHz Xtal is recommended for precise timing. Internally clock is divided by 8, so everything runs at **1 MHz**.
+MCU can be clocked from internal 8 MHz RC-oscillator but **external 8 MHz Xtal** is recommended for precise timing. Internally clock is divided by 8, so everything runs at **1 MHz**.
 
 <details>
 <summary>AVR fuse information</summary>
@@ -49,11 +49,21 @@ For **ATmega328P** with *internal RC generator*:
 - extended byte: **0xFE**
 </details>
 
-Due to low clock MCU can run on voltages from **1.8 V** to **5.0 V**. 
+Due to low clock MCU can run on voltages from **1.8 V** to **5.0 V**.
 But if **74HC595** is used for IO expansion, minimum supply voltage is **2.0 V**.
 
 <details>
 <summary>Pinout for ATmega 48/88/168/328 MCU</summary>
+
+Power supply:
+- **pin 7** *(VCC)*: +5 V supply
+- **pin 20** *(AVCC)*: +5 V supply
+- **pin 8** *(GND)*: 0 V (common)
+- **pin 22** *(GND)*: 0 V (common)
+
+Clock input:
+- **pin 9** *(PB6)*: 8.0 MHz Xtal
+- **pin 10** *(PB7)*: 8.0 MHz Xtal
 
 User input:
 - **pin 23** *(PC0)*: (input) ***fast forward*** command *("0" active, pullup enabled)*
@@ -116,7 +126,7 @@ Buttons that are not necessary can be not connected. If some mechanism sensors a
 
 ## Demo
 
-[![New STC-007 video](https://img.youtube.com/vi/5YsUvNuCFKs/default.jpg)](https://www.youtube.com/watch?v=5YsUvNuCFKs)
+[![CRP42602Y with AVRTapeControl](https://img.youtube.com/vi/5YsUvNuCFKs/default.jpg)](https://www.youtube.com/watch?v=5YsUvNuCFKs)
 
 ## Current state
 
