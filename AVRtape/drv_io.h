@@ -41,12 +41,18 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define BTN_4				(1<<2)
 #define BTN_5				(1<<1)
 #define BTN_6				(1<<0)
-#define BTN_REWD_STATE		(BTN_SRC_1&BTN_1)			// Rewind button
-#define BTN_PLAY_REV_STATE	(BTN_SRC_1&BTN_2)			// Play in reverse button
-#define BTN_STOP_STATE		(BTN_SRC_1&BTN_3)			// Stop button
-#define BTN_REC_STATE		(BTN_SRC_1&BTN_4)			// Record button
-#define BTN_PLAY_STATE		(BTN_SRC_1&BTN_5)			// Play/reverse button
-#define BTN_FFWD_STATE		(BTN_SRC_1&BTN_6)			// Fast forward button
+#define BTN_REWD			BTN_1						// Rewind button
+#define BTN_PLAY_REV		BTN_2						// Play in reverse button
+#define BTN_STOP			BTN_3						// Stop button
+#define BTN_REC				BTN_4						// Record button
+#define BTN_PLAY			BTN_5						// Play/reverse button
+#define BTN_FFWD			BTN_6						// Fast forward button
+#define BTN_REWD_STATE		(BTN_SRC_1&BTN_REWD)
+#define BTN_PLAY_REV_STATE	(BTN_SRC_1&BTN_PLAY_REV)
+#define BTN_STOP_STATE		(BTN_SRC_1&BTN_STOP)
+#define BTN_REC_STATE		(BTN_SRC_1&BTN_REC)
+#define BTN_PLAY_STATE		(BTN_SRC_1&BTN_PLAY)
+#define BTN_FFWD_STATE		(BTN_SRC_1&BTN_FFWD)
 #define BTN_EN_INTR1		PCMSK1|=(1<<PCINT8)|(1<<PCINT9)|(1<<PCINT10)|(1<<PCINT11)|(1<<PCINT12)|(1<<PCINT13)
 #define BTN_EN_INTR2		PCICR|=(1<<PCIE1)
 #define BTN_DIS_INTR2		PCICR&=~(1<<PCIE1)
@@ -150,12 +156,6 @@ Hardware defines (pseudo-HAL) and setup routines.
 //-------------------------------------- IO initialization.
 inline void HW_init(void)
 {
-	// Turn off unused modules for power saving.
-	PWR_COMP_OFF; PWR_ADC_OFF; PWR_I2C_OFF; PWR_T0_OFF; PWR_T1_OFF;
-#ifndef UART_TERM
-	PWR_UART_OFF;
-#endif /* UART_TERM */
-
 	// Init power output control.
 	SMTR_PORT&=~(SMTR_BIT1|SMTR_BIT2);		// Disable pull-ups/set output to "0"
 	SMTR_DIR|=(SMTR_BIT1|SMTR_BIT2);		// Set pins as outputs
@@ -194,6 +194,12 @@ inline void HW_init(void)
 	// Init USART interface.
 	UART_set_speed(UART_SPEED);
 	UART_enable();
+#endif /* UART_TERM */
+
+	// Turn off unused modules for power saving.
+	PWR_COMP_OFF; PWR_ADC_OFF; PWR_I2C_OFF; PWR_T0_OFF; PWR_T1_OFF;
+#ifndef UART_TERM
+	PWR_UART_OFF;
 #endif /* UART_TERM */
 }
 

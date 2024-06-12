@@ -32,8 +32,9 @@ Processes switches reading, user input (buttons) reading, mode indication, timin
 #include <avr/pgmspace.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
-#include "common_log.h"
 #include "drv_cpu.h"
+#include <util/delay.h>
+#include "common_log.h"
 #include "drv_eeprom.h"
 #include "drv_io.h"
 #ifdef SUPP_CRP42602Y_MECH
@@ -57,6 +58,8 @@ Processes switches reading, user input (buttons) reading, mode indication, timin
 #define	TASK_2HZ			(1<<3)	// 2 Hz event
 #define	TASK_SLOW_BLINK		(1<<4)	// Indicator slow blink source
 #define	TASK_FAST_BLINK		(1<<5)	// Indicator fast blink source
+#define	TASK_SCAN_PB_BTNS	(1<<6)	// Start-up scan for number of playback buttons
+#define	TASK_SCAN_STEST		(1<<7)	// Start-up scan for self-test mode
 
 uint16_t audio_centering(uint16_t in_audio, uint16_t in_center);
 void ADC_read_result(void);

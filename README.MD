@@ -27,33 +27,86 @@ Sorry, no electrical schematics at the moment...
 MCU can be clocked from internal 8 MHz RC-oscillator but **external 8 MHz Xtal** is recommended for precise timing. Internally clock is divided by 8, so everything runs at **1 MHz**.
 
 <details>
-<summary>AVR fuse information</summary>
+<summary>AVR fuses for ATmega328 with 8 MHz Xtal</summary>
 
-Fuses for **ATmega328P** with *8 MHz Xtal*:
 - **CKDIV8** = 0
-- **SUT0** = 0
+- **SUT1** = 0
 - **CKSEL3** = 0
 - **SPIEN** = 0
-- **EESAVE** = 0
+- **BODLEVEL1** = 0
 - **BODLEVEL0** = 0
 - all other at "1"
 
 In hex form:
-- low byte: **0x67**
-- high byte: **0xD7**
-- extended byte: **0xFE**
+- low byte: **0x57**
+- high byte: **0xDF**
+- extended byte: **0xFC**
+</details>
 
-For **ATmega328P** with *internal RC generator*:
-- low byte: **0xC2**
-- high byte: **0xD7**
-- extended byte: **0xFE**
+<details>
+<summary>AVR fuses for ATmega328 with internal RC generator</summary>
+
+- **CKDIV8** = 0
+- **SUT1** = 0
+- **SUT0** = 0
+- **CKSEL3** = 0
+- **CKSEL2** = 0
+- **CKSEL0** = 0
+- **SPIEN** = 0
+- **BODLEVEL1** = 0
+- **BODLEVEL0** = 0
+- all other at "1"
+
+In hex form:
+- low byte: **0x42**
+- high byte: **0xDF**
+- extended byte: **0xFC**
+</details>
+
+<details>
+<summary>AVR fuses for ATmega48/ATmega88/ATmega168 with 8 MHz Xtal</summary>
+
+- **CKDIV8** = 0
+- **SUT1** = 0
+- **CKSEL3** = 0
+- **SPIEN** = 0
+- **BODLEVEL1** = 0
+- **BODLEVEL0** = 0
+- all other at "1"
+
+In hex form:
+- low byte: **0x57**
+- high byte: **0xDC**
+- extended byte: **0xFF**
+</details>
+
+<details>
+<summary>AVR fuses for ATmega48/ATmega88/ATmega168 with internal RC generator</summary>
+
+- **CKDIV8** = 0
+- **SUT1** = 0
+- **SUT0** = 0
+- **CKSEL3** = 0
+- **CKSEL2** = 0
+- **CKSEL0** = 0
+- **SPIEN** = 0
+- **BODLEVEL1** = 0
+- **BODLEVEL0** = 0
+- all other at "1"
+
+In hex form:
+- low byte: **0x42**
+- high byte: **0xDC**
+- extended byte: **0xFF**
 </details>
 
 Due to low clock MCU can run on voltages from **1.8 V** to **5.0 V**.
-But if **74HC595** is used for IO expansion, minimum supply voltage is **2.0 V**.
+If **74HC595** is used for IO expansion, minimum supply voltage is **2.0 V**.
+
+Most tape transports require **12 V** to function and fail at voltage **< 8 V** and usually MCU will get power from that +12 V supply through an LDO, so there is no reason to make MCU operational below **4 V** and thus fuses are set to minimum operating voltage of **4.3 V**.
 
 <details>
-<summary>Pinout for ATmega 48/88/168/328 MCU</summary>
+<summary>Pinout for ATmega 48/88/168/328 MCU in DIP packages</summary>
 
 Power supply:
 - **pin 7** *(VCC)*: +5 V supply
@@ -102,7 +155,7 @@ Buttons that are not necessary can be not connected. If some mechanism sensors a
 > "*Capstan motor drive*" is optional and can be left disconnected.
 
 > [!NOTE]
-> "*Playback mute*" and "*record enable*" are also optional.
+> "*Playback mute*" and "*record enable*" outputs are also optional.
 
 > [!NOTE]
 > **74HC595** extender is used for mode indication and can be not installed.
@@ -115,8 +168,8 @@ Buttons that are not necessary can be not connected. If some mechanism sensors a
 - **pin 2** *(bit 2)*: **stop**
 - **pin 3** *(bit 3)*: **recording**
 - **pin 4** *(bit 4)*: **rewind**
-- **pin 5** *(bit 5)*: **playback in reverse** (or playback direction)
-- **pin 6** *(bit 6)*: **playback in forward** (or playback)
+- **pin 5** *(bit 5)*: **playback in reverse** (or **playback direction**)
+- **pin 6** *(bit 6)*: **playback in forward** (or **playback**)
 - **pin 7** *(bit 7)*: **fast forward**
 
 </details>
@@ -124,13 +177,50 @@ Buttons that are not necessary can be not connected. If some mechanism sensors a
 > [!IMPORTANT]
 > "*Solenoid drive*" and "*capstan motor drive*" should be connected to some transistors that will switch current to solenoid and motor respectively. Usually those are powered from a separate **+12 V** supply.
 
+## How does it work
+
+### Auto-detecting number of "PLAY" buttons
+
+At the startup firmware performs a short test, searching for a short between "*Play in forward*" and "*Play in reverse*" inputs. If short is detected then control of the playback will be performed using only one ("*Play in forward*") button. If there is no short, control scheme will require two playback buttons.
+
+> [!NOTE]
+> This feature applies only for transports with reverse playback capabilities.
+
+When in "*single play button*" control scheme, pressing "*Play*" button when not in playback mode will engage playback in the last performed direction. If "*Play*" button is pressed during playback, tape direction will reverse and playback will start in an opposite direction. So, single button controls both starting the playback and its direction. "*Playback*" indicator will activate for playback in any direction, "*playback direction*" will active when playing in reverse.
+
+When in "*dual play button*" control scheme, pressing "*Play*" will engage playback in forward direction. Pressing "*Play in reverse*" will engage playback in reverse direction. "*Playback in forward*" indicator will activate for playback in forward direction. "*Playback in reverse*" indicator will activate for playback in reverse direction.
+
+### Self-test mode
+
+If "*Stop*" button is held at the powerup, firmware will perform 10 second self-test.
+
+"*Tape presence*" indicator will activate if there is a tape inserted.
+
+"*Recording*" indicator will activate if record inhibit switch on any side senses "recording is allowed" condition.
+
+"*Fault*" indicator will stay active.
+
+Other indicators will switch state **once a second**:
+
+- "*Stop*" is active
+- "*Playback in forward*" and "*Playback in reverse*" are active
+- "*Fast forward*" and "*Rewind*" are active
+
+This mode allows to test tape mechanism switches, correct MCU clock (by blink speed), function of indicators.
+
+After 10 second elapsed self-test mode is disabled and firmware resumes normal operation.
+
 ## Demo
+
+Old video of reverse-engineering CRP42602Y transport:
 
 [![CRP42602Y with AVRTapeControl](https://img.youtube.com/vi/5YsUvNuCFKs/default.jpg)](https://www.youtube.com/watch?v=5YsUvNuCFKs)
 
 ## Current state
 
 - User-input processing is working fine
+- Auto-detection of number of playback buttons
+- Self-test mode for verifying MCU clock, indicators and tape transport switches
 - Mode indicators are working fine
 - State machine for CRP42602Y is working fine (some bugs in edge cases may still be present)
 - State machine for Tanashin-clone is in draft state, not working
@@ -140,11 +230,11 @@ Buttons that are not necessary can be not connected. If some mechanism sensors a
 - Finish Tanashin-clone support
 - Add support for more transports
 - Add feature toggling through command buttons in STOP mode (no pins for additional switches)
-- Enable and use EEPROM driver for saving feature configuration
+- Enable and use EEPROM driver for saving feature configuration and run counters
 - Add more IO on SPI for more switches and indicators
 
 ## License
-Program copyright 2021-2023.
+Program copyright 2021-2024.
 
 This program is free software.
 Licensed under the Apache License, Version 2.0 (the "License");

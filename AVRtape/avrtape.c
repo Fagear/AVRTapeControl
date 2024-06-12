@@ -10,6 +10,7 @@ uint8_t u8_500hz_cnt=0;						// Divider for 500 Hz
 uint8_t u8_50hz_cnt=0;						// Divider for 50 Hz
 uint8_t u8_10hz_cnt=0;						// Divider for 10 Hz
 uint8_t u8_2hz_cnt=0;						// Divider for 2 Hz
+uint8_t u8_stest_timer=0;					// Delay for self-test indication.
 uint8_t u8_mech_type=TTR_TYPE_CRP42602Y;	// Selected type of mechanism
 uint8_t u8_transition_timer=0;				// Solenoid holding timer
 uint8_t u8_tacho_timer=0;					// Time from last tachometer signal
@@ -28,7 +29,7 @@ char u8a_buf[48];							// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.09";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v0.10";			// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";				// Firmware description
@@ -449,6 +450,86 @@ inline void keys_simple_scan(void)
 	}
 }
 
+//-------------------------------------- Start-up test for number of connected playback buttons.
+void scan_pb_buttons(void)
+{
+	// Set "single playback button" state.
+	u16_features &= ~TTR_FEA_TWO_PLAYS;
+	// Let pin stabilize.
+	_delay_us(10);
+	// Pull both buttons up as inputs.
+	BTN_DIR_1 &= ~(BTN_PLAY|BTN_PLAY_REV);
+	BTN_PORT_1 |= (BTN_PLAY|BTN_PLAY_REV);
+	// Let pin stabilize.
+	_delay_us(20);
+	// Check if both inputs are held at "1".
+	if(BTN_PLAY_STATE==0)
+	{
+		// PLAY is at "0".
+		if(BTN_PLAY_REV_STATE!=0)
+		{
+			// REVERSE PLAY is at "1".
+			// If buttons are in different state that implies that there are two separate inputs.
+			u16_features |= TTR_FEA_TWO_PLAYS;
+		}
+		/*else
+		{
+			// REVERSE PLAY is at "0".
+			// If both buttons are at "0" that can imply a combined input but it also can indicate two buttons held down.
+			// Can not determine further, quit.
+		}*/
+	}
+	else
+	{
+		// PLAY is at "1".
+		if(BTN_PLAY_REV_STATE==0)
+		{
+			// REVERSE PLAY is at "0".
+			// If buttons are in different state that implies that there are two separate inputs.
+			u16_features |= TTR_FEA_TWO_PLAYS;
+		}
+		else
+		{
+			// REVERSE PLAY is also at "1".
+			// Pull PLAY pin low, hard.
+			BTN_PORT_1 &= ~BTN_PLAY;
+			BTN_DIR_1 |= BTN_PLAY;
+			// Let pin stabilize.
+			_delay_us(10);
+			// Check if REVERSE PLAY input has switched to "0".
+			if(BTN_PLAY_REV_STATE!=0)
+			{
+				// REVERSE PLAY stayed at "1".
+				// REVERSE PLAY as input doesn't follow state of PLAY pin set as output,
+				// implying that those pins are separate, requesting double play button operation.
+				u16_features |= TTR_FEA_TWO_PLAYS;
+			}
+		}
+	}
+	// Set both pins to perform as pulled-up inputs.
+	BTN_DIR_1 &= ~(BTN_PLAY|BTN_PLAY_REV);
+	BTN_PORT_1 |= (BTN_PLAY|BTN_PLAY_REV);
+	// Let pins stabilize.
+	_delay_us(20);
+}
+
+//-------------------------------------- Start-up check for held down STOP button.
+void scan_selftest_buttons(void)
+{
+	// Test button several times.
+	for(uint8_t idx=0;idx<50;idx++)
+	{
+		_delay_us(10);
+		if(BTN_STOP_STATE!=0)
+		{
+			// STOP button is not pressed.
+			// Cancel self-test.
+			u8_tasks &= ~TASK_SCAN_STEST;
+			return;
+		}
+	}
+}
+
 //-------------------------------------- Poll tachometer transitions.
 inline void poll_tacho(void)
 {
@@ -589,7 +670,7 @@ inline void update_indicators(void)
 	{
 		// Transport error detected.
 		// Clear every other mode indicators.
-		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_STOP|IND_PLAY_FWD|IND_PLAY_REV|IND_FFORWARD|IND_REWIND);
+		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_STOP|IND_PLAY_FWD|IND_PLAY_REV|IND_REC|IND_FFORWARD|IND_REWIND);
 		if((u8_transport_error&TTR_ERR_BAD_DRIVE)!=0)
 		{
 			if((u8_tasks&TASK_SLOW_BLINK)!=0)
@@ -617,6 +698,57 @@ inline void update_indicators(void)
 			u8a_spi_buf[SPI_IDX_IND] |= IND_ERROR;
 		}
 	}
+	// Transmit indicator information via SPI.
+	SPI_TX_START;
+	SPI_send_byte(u8a_spi_buf[SPI_IDX_IND]);
+}
+
+//-------------------------------------- Self-test mode indication.
+inline void selftest_indicators(void)
+{
+	u8a_spi_buf[SPI_IDX_IND] &= ~(IND_TAPE|IND_REC);
+	u8a_spi_buf[SPI_IDX_IND] |= IND_ERROR;
+	// Tape presence indicator.
+	if((sw_state&TTR_SW_TAPE_IN)!=0)
+	{
+		u8a_spi_buf[SPI_IDX_IND] |= IND_TAPE;
+	}
+	// Record inhibit switches.
+	if((sw_state&TTR_SW_NOREC_FWD)==0)
+	{
+		u8a_spi_buf[SPI_IDX_IND] |= IND_REC;
+	}
+	if((sw_state&TTR_SW_NOREC_REV)==0)
+	{
+		u8a_spi_buf[SPI_IDX_IND] |= IND_REC;
+	}
+	// Switch mode lights once a second.
+	if((u8_stest_timer==90)||(u8_stest_timer==60)||(u8_stest_timer==30))
+	{
+		u8a_spi_buf[SPI_IDX_IND] |= IND_STOP;
+		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_PLAY_REV|IND_PLAY|IND_REWIND|IND_FFORWARD);
+	}
+	else if((u8_stest_timer==80)||(u8_stest_timer==50)||(u8_stest_timer==20))
+	{
+		u8a_spi_buf[SPI_IDX_IND] |= IND_PLAY_REV|IND_PLAY;
+		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_STOP|IND_REWIND|IND_FFORWARD);
+	}
+	else if((u8_stest_timer==70)||(u8_stest_timer==40)||(u8_stest_timer==10))
+	{
+		u8a_spi_buf[SPI_IDX_IND] |= IND_REWIND|IND_FFORWARD;
+		u8a_spi_buf[SPI_IDX_IND] &= ~(IND_STOP|IND_PLAY_REV|IND_PLAY);
+	}
+	// Count down self-test mode.
+	if(u8_stest_timer!=0) u8_stest_timer--;
+	if(u8_stest_timer==0)
+	{
+		// Clear self-test mode.
+		u8_tasks &= ~TASK_SCAN_STEST;
+		// Clear indicators.
+		u8a_spi_buf[SPI_IDX_IND] &= (uint8_t)~(IND_ERROR|IND_TAPE|IND_STOP|IND_PLAY_REV|IND_PLAY|IND_REWIND|IND_FFORWARD|IND_REC);
+	}
+	// Reset sleep timer.
+	u8_sleep_inh_timer = 0;
 	// Transmit indicator information via SPI.
 	SPI_TX_START;
 	SPI_send_byte(u8a_spi_buf[SPI_IDX_IND]);
@@ -958,6 +1090,14 @@ int main(void)
 	// Start-up initialization.
 	system_startup();
 
+	// Start SPI comms.
+	SPI_int_enable();
+	SPI_TX_START;
+	SPI_send_byte(0x00);
+
+	// Preload startup tests.
+	u8_tasks |= (TASK_SCAN_PB_BTNS|TASK_SCAN_STEST);
+			
 	// Default mech.
 	u8_mech_type = TTR_TYPE_CRP42602Y;
 	// Default feature set.
@@ -995,10 +1135,20 @@ int main(void)
 	UART_dump_out();
 #endif /* UART_TERM */
 
-	// Start SPI comms.
-	SPI_int_enable();
-	SPI_TX_START;
-	SPI_send_byte(0x00);
+	if((u8_tasks&TASK_SCAN_PB_BTNS)!=0)
+	{
+		// Check for short between two playback button inputs
+		// to determine how many playback buttons is required.
+		scan_pb_buttons();
+	}
+	
+	// Check if STOP button is held at start-up
+	// to enable self-test mode.
+	scan_selftest_buttons();
+	if((u8_tasks&TASK_SCAN_STEST)!=0)
+	{
+		u8_stest_timer = 100;
+	}
 
 	// Enable interrupts globally.
 	sei();
@@ -1048,6 +1198,11 @@ int main(void)
 				// 10 Hz event, 100 ms period.
 				// Toggle fast blink flag.
 				u8_tasks^=TASK_FAST_BLINK;
+				if((u8_tasks&TASK_SCAN_STEST)!=0)
+				{
+					// Self-test indication.
+					selftest_indicators();
+				}
 #ifdef UART_TERM
 				//sprintf(u8a_buf, "SLEEP|%02u|%05u|%03u\n\r", u8_crp42602y_mode, u16_crp42602y_idle_time, u8_tacho_timer);
 				//UART_add_string(u8a_buf);
@@ -1064,10 +1219,13 @@ int main(void)
 				switches_scan();
 				// Check tachometer.
 				poll_tacho();
-				// Process user input.
-				process_user();
-				// Update LEDs.
-				update_indicators();
+				if((u8_tasks&TASK_SCAN_STEST)==0)
+				{
+					// Process user input.
+					process_user();
+					// Update LEDs.
+					update_indicators();
+				}
 #ifdef UART_TERM
 				if(UART_get_sending_number()>0)
 				{
@@ -1077,37 +1235,41 @@ int main(void)
 			}
 			if((u8_tasks&TASK_500HZ)!=0)
 			{
-#ifdef UART_TERM
-				uint8_t u8_old_dir;
 				// ~265 us @ 1 MHz (without UART logging)
 				u8_tasks&=~TASK_500HZ;
+#ifdef UART_TERM
+				uint8_t u8_old_dir;
 				// 500 Hz event, 2 ms period.
 				u8_old_dir = u8_last_play_dir;
 #endif /* UART_TERM */
-				// Update transport state machine and solenoid action.
-				if(u8_mech_type==TTR_TYPE_CRP42602Y)
+				// Check if transport operation is allowed.
+				if((u8_tasks&TASK_SCAN_STEST)==0)
 				{
+					// Update transport state machine and solenoid action.
+					if(u8_mech_type==TTR_TYPE_CRP42602Y)
+					{
 #ifdef SUPP_CRP42602Y_MECH
-					// Processing for CRP42602Y mechanism.
-					mech_crp42602y_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
-					u8_mech_mode = mech_crp42602y_get_mode();
-					u8_transition_timer = mech_crp42602y_get_transition();
-					u8_transport_error = mech_crp42602y_get_error();
+						// Processing for CRP42602Y mechanism.
+						mech_crp42602y_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+						u8_mech_mode = mech_crp42602y_get_mode();
+						u8_transition_timer = mech_crp42602y_get_transition();
+						u8_transport_error = mech_crp42602y_get_error();
 #endif /* SUPP_CRP42602Y_MECH */
-				}
-				else if(u8_mech_type==TTR_TYPE_TANASHIN)
-				{
+					}
+					else if(u8_mech_type==TTR_TYPE_TANASHIN)
+					{
 #ifdef SUPP_TANASHIN_MECH
-					// Processing for Tanashin-clone mechanism.
-					mech_tanashin_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
-					u8_mech_mode = mech_tanashin_get_mode();
-					u8_transition_timer = mech_tanashin_get_transition();
-					u8_transport_error = mech_tanashin_get_error();
+						// Processing for Tanashin-clone mechanism.
+						mech_tanashin_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+						u8_mech_mode = mech_tanashin_get_mode();
+						u8_transition_timer = mech_tanashin_get_transition();
+						u8_transport_error = mech_tanashin_get_error();
 #endif /* SUPP_TANASHIN_MECH */
-				}
-				else
-				{
-					mech_log();
+					}
+					else
+					{
+						mech_log();
+					}
 				}
 #ifdef UART_TERM
 				if(u8_old_dir!=u8_last_play_dir)
