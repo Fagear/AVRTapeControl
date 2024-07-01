@@ -39,6 +39,7 @@ void UART_dump_user_mode(uint8_t in_mode)
 #endif /* UART_TERM */
 }
 
+//-------------------------------------- Print feature set.
 void UART_dump_settings(uint16_t in_settings)
 {
 #ifdef UART_TERM
@@ -66,13 +67,21 @@ void UART_dump_settings(uint16_t in_settings)
 	{
 		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_loop); UART_add_flash_string((uint8_t *)cch_disabled);
 	}
-	if((in_settings&TTR_FEA_END_REW)!=0)
+	if((in_settings&TTR_FEA_PBF2REW)!=0)
 	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
+		UART_add_flash_string((uint8_t *)cch_set_pb_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
 	}
 	else
 	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
+		UART_add_flash_string((uint8_t *)cch_set_pb_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	if((in_settings&TTR_FEA_FF2REW)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_fw_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_fw_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
 	}
 	if((in_settings&TTR_FEA_STOP_TACHO)!=0)
 	{

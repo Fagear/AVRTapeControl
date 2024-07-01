@@ -13,6 +13,14 @@ char u8a_crp42602y_buf[8];								// Buffer for UART debug messages
 
 volatile const uint8_t ucaf_crp42602y_mech[] PROGMEM = "CRP42602Y mechanism";
 
+//-------------------------------------- Freeze transport due to error.
+void mech_crp42602y_set_error(uint8_t in_err)
+{
+	u8_crp42602y_target_mode = TTR_42602_MODE_HALT;
+	u8_crp42602y_mode = TTR_42602_MODE_HALT;
+	u8_crp42602y_error += in_err;
+}
+
 //-------------------------------------- Convert user mode to transport mode for CRP42602Y mechanism.
 uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir)
 {
@@ -267,8 +275,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 						UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop1);
 #endif /* UART_TERM */
 						// No motor drive or bad belts, register an error.
-						u8_crp42602y_mode = TTR_42602_MODE_HALT;
-						u8_crp42602y_error += TTR_ERR_BAD_DRIVE;
+						mech_crp42602y_set_error(TTR_ERR_BAD_DRIVE);
 					}
 				}
 				else
@@ -306,6 +313,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 					// Auto-reverse is allowed.
 					if(u8_crp42602y_mode==TTR_42602_MODE_PB_FWD)
 					{
+						// Reverse ops: enabled, auto-reverse enabled.
 						// Currently: playback in forward.
 						// Next: playback in reverse.
 #ifdef UART_TERM
@@ -318,6 +326,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 					{
 						if((in_features&TTR_FEA_PB_LOOP)!=0)
 						{
+							// Reverse ops: enabled, auto-reverse enabled.
 							// Currently: playback in reverse, infinite loop auto-reverse is enabled.
 							// Next: playback in forward.
 #ifdef UART_TERM
@@ -331,6 +340,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 					{
 						if((in_sws&TTR_SW_NOREC_REV)==0)
 						{
+							// Reverse ops: enabled, auto-reverse enabled.
 							// Currently: recording in forward, recording in reverse is allowed.
 							// Next: recording in reverse.
 #ifdef UART_TERM
@@ -339,8 +349,9 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 							// Queue auto-reverse (set user mode to next mode that will be applied after STOP).
 							(*usr_mode) = USR_MODE_REC_REV;
 						}
-						else if((in_features&TTR_FEA_END_REW)!=0)
+						else if((in_features&TTR_FEA_PBF2REW)!=0)
 						{
+							// Reverse ops: enabled, auto-reverse enabled.
 							// Currently: recording in forward, recording in reverse is inhibited, auto-rewind is enabled.
 							// Next: rewind.
 #ifdef UART_TERM
@@ -351,7 +362,9 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 						}
 						else
 						{
-							// No auto-rewind.
+							// Reverse ops: enabled, auto-reverse enabled.
+							// Currently: recording in forward, recording in reverse is inhibited, auto-rewind is disabled.
+							// Next: stop.
 #ifdef UART_TERM
 							UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
@@ -362,6 +375,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 					}
 					else if((u8_crp42602y_mode==TTR_42602_MODE_RC_REV)&&((in_features&TTR_FEA_PB_LOOP)!=0)&&((in_sws&TTR_SW_NOREC_FWD)==0))
 					{
+						// Reverse ops: enabled, auto-reverse enabled.
 						// Currently: recording in reverse, infinite loop auto-reverse is enabled, recording in forward is allowed.
 						// Next: recording in forward.
 #ifdef UART_TERM
@@ -373,7 +387,8 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 #ifdef UART_TERM
 					else
 					{
-						// All other combinatons, next mode: stop.
+						// Reverse ops: enabled, auto-reverse enabled.
+						// All other combinations, next mode: stop.
 						UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_tape_end);
 						// Stop mode already queued.
 					}
@@ -386,9 +401,11 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 					if((u8_crp42602y_mode==TTR_42602_MODE_PB_FWD)||(u8_crp42602y_mode==TTR_42602_MODE_RC_FWD))
 					{
 						// Playback or record was in forward direction.
-						if((in_features&TTR_FEA_END_REW)!=0)
+						if((in_features&TTR_FEA_PBF2REW)!=0)
 						{
-							// Auto-rewind is enabled.
+							// Reverse ops: enabled, auto-reverse disabled.
+							// Currently: playback or recording in forward, auto-rewind is enabled.
+							// Next: rewind.
 #ifdef UART_TERM
 							UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_rewind);
 #endif /* UART_TERM */
@@ -397,7 +414,9 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 						}
 						else
 						{
-							// No auto-rewind.
+							// Reverse ops: enabled, auto-reverse disabled.
+							// Currently: playback or recording in forward, auto-rewind is disabled.
+							// Next: stop.
 #ifdef UART_TERM
 							UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
@@ -409,17 +428,20 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 #ifdef UART_TERM
 					else
 					{
-						// Playback or record was in reverse direction.
-						// No auto-rewind.
+						// Reverse ops: enabled, auto-reverse disabled.
+						// Currently: playback or recording in reverse.
+						// Next: stop.
 						UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_tape_end);
 						// STOP mode already queued.
 					}
 #endif /* UART_TERM */
 				}
 			}
-			else if((in_features&TTR_FEA_END_REW)!=0)
+			else if((in_features&TTR_FEA_PBF2REW)!=0)
 			{
-				// No reverse operations and auto-rewind is enabled.
+				// Reverse ops: disabled.
+				// Currently: playback or recording in forward, auto-rewind is enabled.
+				// Next: rewind.
 #ifdef UART_TERM
 				UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_rewind);
 #endif /* UART_TERM */
@@ -429,7 +451,9 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 #ifdef UART_TERM
 			else
 			{
-				// No reverse operations and no auto-rewind.
+				// Reverse ops: disabled.
+				// Currently: playback or recording in forward, auto-rewind is disabled.
+				// Next: stop.
 				UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
 				// STOP mode already queued.
 			}
@@ -479,68 +503,49 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 			// No signal from takeup tachometer for too long.
 			// Perform auto-stop.
 			u8_crp42602y_target_mode = TTR_42602_MODE_STOP;
+			// Set default "last playback" as forward, it will be corrected below if required.
+			(*play_dir) = PB_DIR_FWD;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
-			// Check if reverse functions are enabled.
-			if((in_features&TTR_FEA_REV_ENABLE)!=0)
+			
+			if((u8_crp42602y_mode==TTR_42602_MODE_FW_FWD)||(u8_crp42602y_mode==TTR_42602_MODE_FW_FWD_HD_REV))
 			{
-				// Reverse functions are allowed.
-				if((u8_crp42602y_mode==TTR_42602_MODE_FW_REV)||(u8_crp42602y_mode==TTR_42602_MODE_FW_REV_HD_REV))
+				// Fast wind was in forward direction.
+				if((in_features&TTR_FEA_FF2REW)!=0)
 				{
-					// Fast wind was in reverse direction.
+					// Currently: fast wind in forward direction, auto-rewind is enabled.
+					// Next: rewind.
 #ifdef UART_TERM
-					UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_tape_end);
+					UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_rewind);
 #endif /* UART_TERM */
-					// Set next playback in forward direction.
-					(*play_dir) = PB_DIR_FWD;
-					// STOP mode already queued.
+					// Set mode to rewind.
+					(*usr_mode) = USR_MODE_FWIND_REV;
 				}
 				else
 				{
-					// Fast wind was in forward direction.
-					if((in_features&TTR_FEA_END_REW)!=0)
-					{
-						// Auto-rewind is enabled.
+					// Currently: fast wind in forward direction, auto-rewind is disabled.
+					// Next: stop.
 #ifdef UART_TERM
-						UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_rewind);
+					UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
-						// Set mode to rewind.
-						(*usr_mode) = USR_MODE_FWIND_REV;
-					}
-					else
+					// Check if reverse functions are enabled.
+					if((in_features&TTR_FEA_REV_ENABLE)!=0)
 					{
-						// Auto-rewind is disabled.
-#ifdef UART_TERM
-						UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
-#endif /* UART_TERM */
-						// Make next playback direction in reverse direction after auto-reverse.
+						// Make next playback direction in reverse direction after auto-stop.
 						(*play_dir) = PB_DIR_REV;
-						// STOP mode already queued.
 					}
+					// STOP mode already queued.
 				}
 			}
-			else if(((in_features&TTR_FEA_END_REW)!=0)&&
-					((u8_crp42602y_mode==TTR_42602_MODE_FW_FWD)||(u8_crp42602y_mode==TTR_42602_MODE_FW_FWD_HD_REV)))
-			{
-				// No reverse operations, auto-rewind is enabled and fast wind was in forward direction.
 #ifdef UART_TERM
-				UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_rewind);
-#endif /* UART_TERM */
-				// Set next playback in forward direction.
-				(*play_dir) = PB_DIR_FWD;
-				// Set mode to rewind.
-				(*usr_mode) = USR_MODE_FWIND_REV;
-			}
 			else
 			{
-				// No reverse operations.
-#ifdef UART_TERM
-				UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
-#endif /* UART_TERM */
-				// Set next playback in forward direction.
-				(*play_dir) = PB_DIR_FWD;
+				// Currently: fast wind in reverse direction.
+				// Next: stop.
+				UART_add_flash_string((uint8_t *)cch_no_tacho_fw); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_tape_end);
 				// STOP mode already queued.
 			}
+#endif /* UART_TERM */
 		}
 		// Check if somehow (manually?) transport switched into STOP.
 		if((in_sws&TTR_SW_STOP)!=0)
@@ -653,11 +658,11 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 					UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
 #endif /* UART_TERM */
 					// Mechanically mode didn't change from active, register an error.
-					u8_crp42602y_mode = TTR_42602_MODE_HALT;
-					u8_crp42602y_error += TTR_ERR_NO_CTRL;
+					mech_crp42602y_set_error(TTR_ERR_NO_CTRL);
 				}
 				else
 				{
+					// Repeat transition to STOP.
 					u8_crp42602y_trans_timer = TIM_42602_DLY_WAIT_STOP;
 					u8_crp42602y_mode = TTR_42602_SUBMODE_TO_STOP;
 				}
@@ -698,9 +703,7 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 				UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
 #endif /* UART_TERM */
 				// Mechanically mode didn't change from STOP, register an error.
-				u8_crp42602y_target_mode = TTR_42602_MODE_HALT;
-				u8_crp42602y_mode = TTR_42602_MODE_HALT;
-				u8_crp42602y_error += TTR_ERR_NO_CTRL;
+				mech_crp42602y_set_error(TTR_ERR_NO_CTRL);
 			}
 			else
 			{
@@ -860,9 +863,7 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 		UART_add_flash_string((uint8_t *)cch_halt_stop3);
 		UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
-		u8_crp42602y_target_mode = TTR_42602_MODE_HALT;
-		u8_crp42602y_mode = TTR_42602_MODE_HALT;
-		u8_crp42602y_error += TTR_ERR_LOGIC_FAULT;
+		mech_crp42602y_set_error(TTR_ERR_LOGIC_FAULT);
 	}
 	// Check if tape is present.
 	if((in_sws&TTR_SW_TAPE_IN)==0)

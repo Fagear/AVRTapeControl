@@ -29,7 +29,7 @@ char u8a_buf[48];							// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.10";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v0.11";			// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";				// Firmware description
@@ -286,23 +286,6 @@ inline void switches_scan(void)
 			sw_released|=TTR_SW_NOREC_REV;
 		}
 	}
-	// Check takeup tachometer sensor.
-	if(SW_TACHO_STATE==0)
-	{
-		if((sw_state&TTR_SW_TACHO)==0)
-		{
-			sw_state|=TTR_SW_TACHO;
-			sw_pressed|=TTR_SW_TACHO;
-		}
-	}
-	else
-	{
-		if((sw_state&TTR_SW_TACHO)!=0)
-		{
-			sw_state&=~TTR_SW_TACHO;
-			sw_released|=TTR_SW_TACHO;
-		}
-	}
 	if(((sw_pressed&(TTR_SW_TAPE_IN|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV))!=0)||
 		((sw_released&(TTR_SW_TAPE_IN|TTR_SW_NOREC_FWD|TTR_SW_NOREC_REV))!=0))
 	{
@@ -533,14 +516,38 @@ void scan_selftest_buttons(void)
 //-------------------------------------- Poll tachometer transitions.
 inline void poll_tacho(void)
 {
+	// Check takeup tachometer sensor.
+	if(SW_TACHO_STATE==0)
+	{
+		if((sw_state&TTR_SW_TACHO)==0)
+		{
+			sw_state|=TTR_SW_TACHO;
+			sw_pressed|=TTR_SW_TACHO;
+		}
+	}
+	else
+	{
+		if((sw_state&TTR_SW_TACHO)!=0)
+		{
+			sw_state&=~TTR_SW_TACHO;
+			sw_released|=TTR_SW_TACHO;
+		}
+	}
+	
 	if(((sw_pressed&TTR_SW_TACHO)!=0)||((sw_released&TTR_SW_TACHO)!=0))
 	{
 		// Tachometer has changed its state from last time.
 		sw_pressed&=~TTR_SW_TACHO;
 		sw_released&=~TTR_SW_TACHO;
+		// Reset tacho timer.
 		u8_tacho_timer = 0;
 	}
-	else if(u8_tacho_timer<240)
+}
+
+//-------------------------------------- Count up tachometer timer.
+inline void count_up_tacho(void)
+{
+	if(u8_tacho_timer<240)
 	{
 		// Count delay up if possible.
 		u8_tacho_timer++;
@@ -718,9 +725,12 @@ inline void selftest_indicators(void)
 	{
 		u8a_spi_buf[SPI_IDX_IND] |= IND_REC;
 	}
-	if((sw_state&TTR_SW_NOREC_REV)==0)
+	if((u16_features&TTR_FEA_REV_ENABLE)!=0)
 	{
-		u8a_spi_buf[SPI_IDX_IND] |= IND_REC;
+		if((sw_state&TTR_SW_NOREC_REV)==0)
+		{
+			u8a_spi_buf[SPI_IDX_IND] |= IND_REC;
+		}
 	}
 	// Switch mode lights once a second.
 	if((u8_stest_timer==90)||(u8_stest_timer==60)||(u8_stest_timer==30))
@@ -1099,9 +1109,12 @@ int main(void)
 	u8_tasks |= (TASK_SCAN_PB_BTNS|TASK_SCAN_STEST);
 			
 	// Default mech.
+#ifdef SUPP_CRP42602Y_MECH
 	u8_mech_type = TTR_TYPE_CRP42602Y;
-	// Default feature set.
-	u16_features = TTR_REV_DEFAULT;
+#endif /* SUPP_CRP42602Y_MECH */
+#ifdef SUPP_TANASHIN_MECH
+	u8_mech_type = TTR_TYPE_TANASHIN;
+#endif /* SUPP_TANASHIN_MECH */
 
 	// Init modes to selected transport.
 	if(u8_mech_type==TTR_TYPE_CRP42602Y)
@@ -1112,6 +1125,10 @@ int main(void)
 	{
 		u8_user_mode = USR_MODE_STOP;
 		u16_features &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_PB_LOOP|TTR_FEA_TWO_PLAYS);	// Disable functions for non-reverse mech.
+		// This transport does not have reverse record inhibit switch,
+		// using this pin as power supply for tacho sensor.
+		TANA_TACHO_PWR_SETUP;
+		TANA_TACHO_PWR_EN;
 	}
 #ifdef UART_TERM
 	// Output startup messages.
@@ -1217,8 +1234,8 @@ int main(void)
 				keys_simple_scan();
 				// Scan switches and sensors.
 				switches_scan();
-				// Check tachometer.
-				poll_tacho();
+				// Increase tachometer timer.
+				count_up_tacho();
 				if((u8_tasks&TASK_SCAN_STEST)==0)
 				{
 					// Process user input.
@@ -1237,11 +1254,9 @@ int main(void)
 			{
 				// ~265 us @ 1 MHz (without UART logging)
 				u8_tasks&=~TASK_500HZ;
-#ifdef UART_TERM
-				uint8_t u8_old_dir;
 				// 500 Hz event, 2 ms period.
-				u8_old_dir = u8_last_play_dir;
-#endif /* UART_TERM */
+				// Scan tachometer.
+				poll_tacho();
 				// Check if transport operation is allowed.
 				if((u8_tasks&TASK_SCAN_STEST)==0)
 				{
@@ -1272,6 +1287,9 @@ int main(void)
 					}
 				}
 #ifdef UART_TERM
+				uint8_t u8_old_dir;
+				// Log tape direction change.
+				u8_old_dir = u8_last_play_dir;
 				if(u8_old_dir!=u8_last_play_dir)
 				{
 					if(u8_last_play_dir==PB_DIR_FWD)

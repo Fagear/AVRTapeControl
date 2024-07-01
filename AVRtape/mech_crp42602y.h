@@ -85,6 +85,7 @@ enum
 
 extern volatile const uint8_t ucaf_crp42602y_mech[];
 
+void mech_crp42602y_set_error(uint8_t in_err);							// Freeze transport due to error.
 uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);		// Convert user mode to transport mode for CRP42602Y mechanism
 void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
 void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);	// Start transition from current mode to target mode

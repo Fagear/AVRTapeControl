@@ -7,8 +7,8 @@ Desired mode is set through buttons (one per mode), MCU operates a solenoid that
 
 ## Supported mechanisms
 *(photos of mechanisms are provided in [/mech_photo](mech_photo) folder)*
-- **"CRP42602Y"** mechanism (that's what it's called on AliExpress, LG uses similar transports)
-- **Tanashin-clone** mechanism
+- **"CRP42602Y"** mechanism (that's what it's called on AliExpress, LG uses similar transports), also known as **M02753900D**.
+- **Tanashin-clone** mechanism, also known as **M60207052**.
 
 ## Features
 
@@ -178,6 +178,13 @@ Buttons that are not necessary can be not connected. If some mechanism sensors a
 > "*Solenoid drive*" and "*capstan motor drive*" should be connected to some transistors that will switch current to solenoid and motor respectively. Usually those are powered from a separate **+12 V** supply.
 
 ## How does it work
+
+Firmware senses state of the sensors on the tape transport and looks for user command. All control is performed by two main outputs:
+
+- Motor enable (optional, used only for power-saving)
+- Solenoid drive
+
+Single-motor transports usually have one solenoid to perform all mode changes. Firmware provides series of precisely-timed impulses to the solenoid to select desired mode.
 
 ### Auto-detecting number of "PLAY" buttons
 

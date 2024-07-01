@@ -67,11 +67,16 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define SW_3				(1<<4)
 #define SW_4				(1<<5)
 #define SW_5				(1<<6)
-#define SW_TACHO_STATE		(SW_SRC&SW_1)				// Tape movement tachometer
-#define SW_STOP_STATE		(SW_SRC&SW_2)				// Tape transport in mechanical "STOP" mode/"HOME" state
-#define SW_TAPE_IN_STATE	(SW_SRC&SW_3)				// Tape presence sensor
-#define SW_NOREC_FWD_STATE	(SW_SRC&SW_4)				// Record inhibit in forward direction
-#define SW_NOREC_REV_STATE	(SW_SRC&SW_5)				// Record inhibit in reverse direction
+#define SW_TACH				SW_1						// Tape movement tachometer
+#define SW_STOP				SW_2						// Tape transport in mechanical "STOP" mode/"HOME" state
+#define SW_TAPE_IN			SW_3						// Tape presence sensor
+#define SW_NOREC_FWD		SW_4						// Record inhibit in forward direction
+#define SW_NOREC_REV		SW_5						// Record inhibit in reverse direction
+#define SW_TACHO_STATE		(SW_SRC&SW_TACH)
+#define SW_STOP_STATE		(SW_SRC&SW_STOP)
+#define SW_TAPE_IN_STATE	(SW_SRC&SW_TAPE_IN)
+#define SW_NOREC_FWD_STATE	(SW_SRC&SW_NOREC_FWD)
+#define SW_NOREC_REV_STATE	(SW_SRC&SW_NOREC_REV)
 #define SW_EN_INTR1			PCMSK2|=(1<<PCINT19)|(1<<PCINT20)|(1<<PCINT21)|(1<<PCINT22)
 #define SW_EN_INTR2			PCICR|=(1<<PCIE2)
 #define SW_DIS_INTR2		PCICR&=~(1<<PCIE2)
