@@ -38,9 +38,12 @@ TODO: recording doesn't start and hangs state machine
 #define TIM_TANA_DLY_SW_ACT			8		// 16 ms (time for solenoid activation and command gear to start turning)
 #define TIM_TANA_DLY_WAIT_REW_ACT	35		// 70 ms (time for second solenoid activation for selecting rewind)
 #define TIM_TANA_DLY_FWIND_ACT		85		// 170 ms (time for solenoid deactivation after selecting rewind)
+#define TIM_TANA_DLY_FWIND_SKIP		110		// 220 ms (time for second solenoid activation for skipping FWIND mode)
+#define TIM_TANA_DLY_SKIP_END		135		// 270 ms (time for solenoid deactivation after skipping FWIND mode)
 #define TIM_TANA_DLY_PB_WAIT		210		// 420 ms (time from the first solenoid activation in STOP until PLAY is fully selected)
 #define TIM_TANA_DLY_FWIND_WAIT		155		// 310 ms (time from the first solenoid activation in PLAY until FWIND is fully selected)
 #define TIM_TANA_DLY_STOP			80		// 160 ms (time from the first solenoid activation in FWIND until STOP is fully selected)
+#define TIM_TANA_DLY_PB2STOP		215		// 430 ms (time from the first solenoid activation in PLAY until STOP is fully selected)
 #define TIM_TANA_DLY_ACTIVE			240		// 480 ms (time for initial stabilization/maximum mode change)
 
 // Maximum wait for next tacho tick for various modes, contained in [u8_tacho_timer].
@@ -77,6 +80,8 @@ enum
 	TTR_TANA_MODE_RC_FWD,			// Stable RECORD in forward direction
 	TTR_TANA_SUBMODE_TO_FWIND,		// Start transition to FAST WIND
 	TTR_TANA_SUBMODE_WAIT_TAKEUP,	// Waiting for takeup direction change range
+	TTR_TANA_SUBMODE_TO_SKIP_FW,	// Start transition to FAST WIND to skip it straight to STOP
+	TTR_TANA_SUBMODE_WAIT_SKIP,		// Waiting for FAST WIND skipping
 	TTR_TANA_SUBMODE_TU_DIR_SEL,	// Takeup direction selection range
 	TTR_TANA_SUBMODE_WAIT_FWIND,	// Waiting for mechanism to transition to FAST WIND
 	TTR_TANA_MODE_FW_FWD,			// Stable FAST WIND in forward direction

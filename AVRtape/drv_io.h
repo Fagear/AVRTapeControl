@@ -31,6 +31,8 @@ Hardware defines (pseudo-HAL) and setup routines.
 #include "drv_uart.h"
 #endif /* UART_TERM */
 
+//#define DBG_ACT_MON		// Output mode transition activity instead of "record" output.
+
 // User-input buttons.
 #define BTN_PORT_1			PORTC
 #define BTN_DIR_1			DDRC
@@ -157,6 +159,18 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define PWR_I2C_OFF			PRR|=(1<<PRTWI)
 #define PWR_SPI_OFF			PRR|=(1<<PRSPI)
 #define PWR_UART_OFF		PRR|=(1<<PRUSART0)
+
+#ifdef DBG_ACT_MON
+	#undef REC_EN_ON
+	#undef REC_EN_OFF
+	#define	DBG_MODE_ACT_ON		REC_EN_PORT|=REC_EN_BIT
+	#define	DBG_MODE_ACT_OFF	REC_EN_PORT&=~REC_EN_BIT
+	#define REC_EN_ON
+	#define REC_EN_OFF
+#else
+	#define	DBG_MODE_ACT_ON
+	#define	DBG_MODE_ACT_OFF
+#endif
 
 //-------------------------------------- IO initialization.
 inline void HW_init(void)

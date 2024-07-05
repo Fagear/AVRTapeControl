@@ -11,7 +11,9 @@ uint8_t u8_crp42602y_retries=0;							// Number of retries beforce transport hal
 char u8a_crp42602y_buf[8];								// Buffer for UART debug messages
 #endif /* UART_TERM */
 
+#ifdef SUPP_CRP42602Y_MECH
 volatile const uint8_t ucaf_crp42602y_mech[] PROGMEM = "CRP42602Y mechanism";
+#endif /* SUPP_CRP42602Y_MECH */
 
 //-------------------------------------- Freeze transport due to error.
 void mech_crp42602y_set_error(uint8_t in_err)
@@ -967,6 +969,14 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 			// Reset tachometer timer.
 			(*tacho) = 0;
 		}
+	}
+	if(u8_crp42602y_trans_timer==0)
+	{
+		DBG_MODE_ACT_OFF;
+	}
+	else
+	{
+		DBG_MODE_ACT_ON;
 	}
 }
 

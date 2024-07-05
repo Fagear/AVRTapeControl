@@ -29,11 +29,12 @@ char u8a_buf[48];							// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.11";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v0.12";			// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
-volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";				// Firmware description
-volatile const uint8_t ucaf_author[] PROGMEM = "Maksim Kryukov aka Fagear (fagear@mail.ru)";	// Author
+volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";			// Firmware description
+volatile const uint8_t ucaf_author[] PROGMEM = "Maksim Kryukov aka Fagear";					// Author
+volatile const uint8_t ucaf_url[] PROGMEM = "https://github.com/Fagear/AVRTapeControl";		// URL
 
 //-------------------------------------- System timer interrupt handler.
 ISR(SYST_INT, ISR_NAKED)
@@ -1114,22 +1115,15 @@ int main(void)
 #endif /* SUPP_CRP42602Y_MECH */
 #ifdef SUPP_TANASHIN_MECH
 	u8_mech_type = TTR_TYPE_TANASHIN;
+	u16_features &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_PB_LOOP|TTR_FEA_TWO_PLAYS);	// Disable functions for non-reverse mech.
+	// This transport does not have reverse record inhibit switch,
+	// using this pin as power supply for tacho sensor.
+	TANA_TACHO_PWR_SETUP;
+	TANA_TACHO_PWR_EN;
 #endif /* SUPP_TANASHIN_MECH */
 
 	// Init modes to selected transport.
-	if(u8_mech_type==TTR_TYPE_CRP42602Y)
-	{
-		u8_user_mode = USR_MODE_STOP;
-	}
-	else if(u8_mech_type==TTR_TYPE_TANASHIN)
-	{
-		u8_user_mode = USR_MODE_STOP;
-		u16_features &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_PB_LOOP|TTR_FEA_TWO_PLAYS);	// Disable functions for non-reverse mech.
-		// This transport does not have reverse record inhibit switch,
-		// using this pin as power supply for tacho sensor.
-		TANA_TACHO_PWR_SETUP;
-		TANA_TACHO_PWR_EN;
-	}
+	u8_user_mode = USR_MODE_STOP;
 #ifdef UART_TERM
 	// Output startup messages.
 	UART_add_flash_string((uint8_t *)cch_startup_1);

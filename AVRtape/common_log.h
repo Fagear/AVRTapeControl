@@ -105,7 +105,7 @@ enum
 	TTR_FEA_TWO_PLAYS	= (1<<6),	// Enable two PLAY buttons/LEDs (for each direction)
 };
 //#define TTR_REV_DEFAULT		(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_FF2REW)		// Default feature settings
-#define TTR_REV_DEFAULT				(TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_FF2REW)		// Default feature settings
+#define TTR_REV_DEFAULT				(TTR_FEA_REV_ENABLE|TTR_FEA_TWO_PLAYS|TTR_FEA_PB_AUTOREV|TTR_FEA_FF2REW)		// Default feature settings
 
 // Index of byte in SPI bus extenders for [u8a_spi_buf].
 enum
