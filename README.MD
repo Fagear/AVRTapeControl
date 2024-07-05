@@ -8,7 +8,7 @@ Desired mode is set through buttons (one per mode), MCU operates a solenoid that
 ## Supported mechanisms
 *(photos of mechanisms are provided in [/mech_photo](mech_photo) folder)*
 - **"CRP42602Y"** mechanism (that's what it's called on AliExpress, LG uses similar transports), also known as **M02753900D**.
-- **Tanashin-clone** mechanism, also known as **M60207052**.
+- **Tanashin TN-21ZLG/CSG clone** mechanism (used in new TEAC and TASCAM decks), also known as **M60207052**.
 
 ## Features
 
@@ -110,7 +110,7 @@ Most tape transports require **12 V** to function and fail at voltage **< 8 V** 
 
 Power supply:
 - **pin 7** *(VCC)*: +5 V supply
-- **pin 20** *(AVCC)*: +5 V supply
+- **pin 20** *(AVCC)*: +5 V supply (BOD)
 - **pin 8** *(GND)*: 0 V (common)
 - **pin 22** *(GND)*: 0 V (common)
 
@@ -131,7 +131,8 @@ Mechanism sensors:
 - **pin 5** *(PD3)*: (input) home/***stop position*** sensor *("1" active, pullup enabled)*
 - **pin 6** *(PD4)*: (input) ***tape presence*** sensor *("0" active, pullup enabled)*
 - **pin 11** *(PD5)*: (input) forward ***record inhibit*** sensor *("1" active, pullup enabled)*
-- **pin 12** *(PD6)*: (input) reverse ***record inhibit*** sensor *("1" active, pullup enabled)*
+- **pin 12** *(PD6)*: (input) reverse ***record inhibit*** sensor *("1" active, pullup enabled)* **(for CRP42602Y transport)**
+- **pin 12** *(PD6)*: (output) +5 V power to tachometer sensor **(for Tanashin-clone)**
 
 Mechanism controls:
 - **pin 14** *(PB0)*: (output) ***solenoid*** drive *("1" for energizing)*
@@ -219,9 +220,17 @@ After 10 second elapsed self-test mode is disabled and firmware resumes normal o
 
 ## Demo
 
-Old video of reverse-engineering CRP42602Y transport:
+Release firmware for **CSG clone of Tanashin TN-21ZLG**/**M60207052** transport:
 
-[![CRP42602Y with AVRTapeControl](https://img.youtube.com/vi/5YsUvNuCFKs/default.jpg)](https://www.youtube.com/watch?v=5YsUvNuCFKs)
+[![CSG clone of Tanashin TN-21ZLG with AVRTapeControl](https://img.youtube.com/vi/yGgGG5cwDQc/default.jpg)](https://www.youtube.com/watch?v=yGgGG5cwDQc)
+
+Release firmware for **CRP42602Y**/**M02753900D** transport:
+
+[![CRP42602Y with AVRTapeControl](https://img.youtube.com/vi/U36fvBHO8jw/default.jpg)](https://www.youtube.com/watch?v=U36fvBHO8jw)
+
+Old video of reverse-engineering **CRP42602Y** transport:
+
+[![CRP42602Y reverse-engineering](https://img.youtube.com/vi/5YsUvNuCFKs/default.jpg)](https://www.youtube.com/watch?v=5YsUvNuCFKs)
 
 ## Current state
 
@@ -230,15 +239,15 @@ Old video of reverse-engineering CRP42602Y transport:
 - Self-test mode for verifying MCU clock, indicators and tape transport switches
 - Mode indicators are working fine
 - State machine for CRP42602Y is working fine (some bugs in edge cases may still be present)
-- State machine for Tanashin-clone is in draft state, not working
+- State machine for Tanashin-clone is working fine
 - Power saving procedures are working fine
 
 ## Plans
-- Finish Tanashin-clone support
 - Add support for more transports
 - Add feature toggling through command buttons in STOP mode (no pins for additional switches)
 - Enable and use EEPROM driver for saving feature configuration and run counters
 - Add more IO on SPI for more switches and indicators
+- Add SPI-slave operations to support higher-level control from another MCU
 
 ## License
 Program copyright 2021-2024.
