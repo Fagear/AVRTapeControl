@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 mech_crp42602y.h
 
-Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2023-2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ limitations under the License.
 Created: 2023-09-07
 
 State machine for CRP42602Y tape transport (TTR) mechanism from AliExpress. Looks like some mechanisms used in LG tape machines.
-One motor belt-driven (for capstan, take-up and mode switching), one solenoid (for mode switching).
+Belt-driven, one motor (for capstan, take-up and mode switching), one solenoid (for mode switching).
 This mechanism has two capstans and supports reverse operations.
 Also this mechanism has takeup tachometer sensor on drive pulley and it pulses in STOP.
 
@@ -56,31 +56,31 @@ Also this mechanism has takeup tachometer sensor on drive pulley and it pulses i
 // States of CRP42602Y mechanism for [u8_crp42602y_target_mode] and [u8_crp42602y_mode] (including "SUBMODES").
 enum
 {
-	TTR_42602_MODE_TO_INIT,			// 0 Start-up state
-	TTR_42602_SUBMODE_INIT,			// 1 Wait for mechanism to stabilize upon power-up
-	TTR_42602_SUBMODE_TO_STOP,		// 2 Start transition from active mode to STOP
-	TTR_42602_SUBMODE_WAIT_STOP,	// 3 Waiting for mechanism to reach STOP sensor
-	TTR_42602_MODE_STOP,			// 4 Stable STOP state
-	TTR_42602_SUBMODE_TO_ACTIVE,	// 5 Start transition from STOP to any active mode
-	TTR_42602_SUBMODE_ACT,			// 6 Waiting for main cyclogram to start
-	TTR_42602_SUBMODE_WAIT_DIR,		// 7 Waiting for pinch direction change range
-	TTR_42602_SUBMODE_HD_DIR_SEL,	// 8 Head/pinch direction selection range
-	TTR_42602_SUBMODE_WAIT_PINCH,	// 9 Waiting for pinch engage range
-	TTR_42602_SUBMODE_PINCH_SEL,	// 10 Choose to engage pinch roller
-	TTR_42602_SUBMODE_WAIT_TAKEUP,	// 11 Waiting for takeup direction change range
-	TTR_42602_SUBMODE_TU_DIR_SEL,	// 12 Takeup direction selection range
-	TTR_42602_SUBMODE_WAIT_RUN,		// 13 Waiting for mechanism to stabilize
-	TTR_42602_MODE_PB_FWD,			// 14 Stable PLAYBACK in forward direction
-	TTR_42602_MODE_PB_REV,			// 15 Stable PLAYBACK in reverse direction
-	TTR_42602_MODE_RC_FWD,			// 16 Stable RECORD in forward direction
-	TTR_42602_MODE_RC_REV,			// 17 Stable RECORD in reverse direction
-	TTR_42602_MODE_FW_FWD,			// 18 Stable FAST WIND in forward direction, head/pinch in forward direction
-	TTR_42602_MODE_FW_REV,			// 19 Stable FAST WIND in reverse direction, head/pinch in forward direction
-	TTR_42602_MODE_FW_FWD_HD_REV,	// 20 Stable FAST WIND in forward direction, head/pinch in reverse direction
-	TTR_42602_MODE_FW_REV_HD_REV,	// 21 Stable FAST WIND in reverse direction, head/pinch in reverse direction
-	TTR_42602_SUBMODE_TO_HALT,		// 22 Start transition to HALT
-	TTR_42602_MODE_HALT,			// 23 Permanent halt due to an error
-	TTR_42602_MODE_MAX				// 24 Mode selector limit
+	TTR_42602_MODE_TO_INIT,			// Start-up state
+	TTR_42602_SUBMODE_INIT,			// Wait for mechanism to stabilize upon power-up
+	TTR_42602_SUBMODE_TO_STOP,		// Start transition from active mode to STOP
+	TTR_42602_SUBMODE_WAIT_STOP,	// Waiting for mechanism to reach STOP sensor
+	TTR_42602_MODE_STOP,			// Stable STOP state
+	TTR_42602_SUBMODE_TO_ACTIVE,	// Start transition from STOP to any active mode
+	TTR_42602_SUBMODE_ACT,			// Waiting for main cyclogram to start
+	TTR_42602_SUBMODE_WAIT_DIR,		// Waiting for pinch direction change range
+	TTR_42602_SUBMODE_HD_DIR_SEL,	// Head/pinch direction selection range
+	TTR_42602_SUBMODE_WAIT_PINCH,	// Waiting for pinch engage range
+	TTR_42602_SUBMODE_PINCH_SEL,	// Choose to engage pinch roller
+	TTR_42602_SUBMODE_WAIT_TAKEUP,	// Waiting for takeup direction change range
+	TTR_42602_SUBMODE_TU_DIR_SEL,	// Takeup direction selection range
+	TTR_42602_SUBMODE_WAIT_RUN,		// Waiting for mechanism to stabilize
+	TTR_42602_MODE_PB_FWD,			// Stable PLAYBACK in forward direction
+	TTR_42602_MODE_PB_REV,			// Stable PLAYBACK in reverse direction
+	TTR_42602_MODE_RC_FWD,			// Stable RECORD in forward direction
+	TTR_42602_MODE_RC_REV,			// Stable RECORD in reverse direction
+	TTR_42602_MODE_FW_FWD,			// Stable FAST WIND in forward direction, head/pinch in forward direction
+	TTR_42602_MODE_FW_REV,			// Stable FAST WIND in reverse direction, head/pinch in forward direction
+	TTR_42602_MODE_FW_FWD_HD_REV,	// Stable FAST WIND in forward direction, head/pinch in reverse direction
+	TTR_42602_MODE_FW_REV_HD_REV,	// Stable FAST WIND in reverse direction, head/pinch in reverse direction
+	TTR_42602_SUBMODE_TO_HALT,		// Start transition to HALT
+	TTR_42602_MODE_HALT,			// Permanent halt due to an error
+	TTR_42602_MODE_MAX				// Mode selector limit
 };
 
 extern volatile const uint8_t ucaf_crp42602y_mech[];

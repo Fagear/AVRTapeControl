@@ -1,14 +1,14 @@
 #include "mech_tanashin.h"
 
 uint8_t u8_tanashin_target_mode=TTR_TANA_MODE_TO_INIT;	// Target transport mode (derived from [usr_mode])
-uint8_t u8_tanashin_mode=TTR_TANA_MODE_STOP;		// Current tape transport mode (transitions to [u8_tanashin_target_mode])
-uint8_t u8_tanashin_error=TTR_ERR_NONE;				// Last transport error
-uint8_t u8_tanashin_trans_timer=0;					// Solenoid holding timer
-uint16_t u16_tanashin_idle_time=0;					// Timer for disabling capstan motor
-uint8_t u8_tanashin_retries=0;						// Number of retries beforce transport halts
+uint8_t u8_tanashin_mode=TTR_TANA_MODE_STOP;			// Current tape transport mode (transitions to [u8_tanashin_target_mode])
+uint8_t u8_tanashin_error=TTR_ERR_NONE;					// Last transport error
+uint8_t u8_tanashin_trans_timer=0;						// Solenoid holding timer
+uint16_t u16_tanashin_idle_time=0;						// Timer for disabling capstan motor
+uint8_t u8_tanashin_retries=0;							// Number of retries before transport halts
 
 #ifdef UART_TERM
-char u8a_tanashin_buf[32];							// Buffer for UART debug messages
+char u8a_tanashin_buf[24];								// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 #ifdef SUPP_TANASHIN_MECH
@@ -227,7 +227,7 @@ void mech_tanashin_user2target(uint8_t *usr_mode)
 	UART_add_flash_string((uint8_t *)cch_user2target1); mech_tanashin_UART_dump_mode(u8_tanashin_target_mode);
 	UART_add_flash_string((uint8_t *)cch_user2target2); UART_dump_user_mode((*usr_mode)); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
-	// New target mode will apply in the next run of the [transport_state_machine()].
+	// New target mode will apply in the next run of the [mech_tanashin_state_machine()].
 	u8_tanashin_target_mode = mech_tanashin_user_to_transport((*usr_mode));
 }
 

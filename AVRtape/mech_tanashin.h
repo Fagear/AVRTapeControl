@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 mech_tanashin.h
 
-Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2023-2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,12 +17,9 @@ limitations under the License.
 
 Created: 2023-09-07
 
-State machine for typical Tanashin-clone tape transport (TTR) mechanism with logical/software control.
-One motor belt-driven (for capstan, take-up and mode switching), one solenoid (for mode switching).
+State machine for typical Tanashin TN-21ZLG clone tape transport (TTR) mechanism with logical/software control.
+Belt-driven, one motor (for capstan, take-up and mode switching), one solenoid (for mode switching).
 This mechanism does not support reverse operations.
-
-TODO: still work in progress, does not work!
-TODO: recording doesn't start and hangs state machine
 
 **************************************************************************************************************************************************************/
 

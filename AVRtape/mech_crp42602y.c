@@ -5,10 +5,10 @@ uint8_t u8_crp42602y_mode=TTR_42602_MODE_STOP;      	// Current tape transport m
 uint8_t u8_crp42602y_error=TTR_ERR_NONE;				// Last transport error
 uint8_t u8_crp42602y_trans_timer=0;						// Solenoid holding timer
 uint16_t u16_crp42602y_idle_time=0;						// Timer for disabling capstan motor
-uint8_t u8_crp42602y_retries=0;							// Number of retries beforce transport halts
+uint8_t u8_crp42602y_retries=0;							// Number of retries before transport halts
 
 #ifdef UART_TERM
-char u8a_crp42602y_buf[8];								// Buffer for UART debug messages
+char u8a_crp42602y_buf[4];								// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 #ifdef SUPP_CRP42602Y_MECH
