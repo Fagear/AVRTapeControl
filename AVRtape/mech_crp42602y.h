@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 mech_crp42602y.h
 
-Copyright © 2023-2024 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,20 +45,12 @@ Also this mechanism has takeup tachometer sensor on drive pulley and it pulses i
 #define TACHO_42602_PLAY_DLY_MAX	50		// 1000 ms (~1 Hz)
 #define TACHO_42602_FWIND_DLY_MAX	10		// 120 ms (~8 Hz)
 
-// Maximum wait before capstan shutdown.
-#define IDLE_42602_NO_TAPE			7500	// 15 s
-#define IDLE_42602_TAPE_IN			60000	// 120 s
-#define IDLE_42602_MAX				IDLE_42602_TAPE_IN
-
-// Maximum number of tries to switch to STOP mode before HALT.
-#define REP_42602_MAX				4
-
 // States of CRP42602Y mechanism for [u8_crp42602y_target_mode] and [u8_crp42602y_mode] (including "SUBMODES").
 enum
 {
 	TTR_42602_MODE_TO_INIT,			// Start-up state
 	TTR_42602_SUBMODE_INIT,			// Wait for mechanism to stabilize upon power-up
-	TTR_42602_SUBMODE_TO_STOP,		// Start transition from active mode to STOP
+	TTR_42602_SUBMODE_TO_STOP,		// Start transition to STOP
 	TTR_42602_SUBMODE_WAIT_STOP,	// Waiting for mechanism to reach STOP sensor
 	TTR_42602_MODE_STOP,			// Stable STOP state
 	TTR_42602_SUBMODE_TO_ACTIVE,	// Start transition from STOP to any active mode
@@ -79,21 +71,21 @@ enum
 	TTR_42602_MODE_FW_FWD_HD_REV,	// Stable FAST WIND in forward direction, head/pinch in reverse direction
 	TTR_42602_MODE_FW_REV_HD_REV,	// Stable FAST WIND in reverse direction, head/pinch in reverse direction
 	TTR_42602_SUBMODE_TO_HALT,		// Start transition to HALT
-	TTR_42602_MODE_HALT,			// Permanent halt due to an error
+	TTR_42602_MODE_HALT,			// Permanent HALT due to an error
 	TTR_42602_MODE_MAX				// Mode selector limit
 };
 
 extern volatile const uint8_t ucaf_crp42602y_mech[];
 
-void mech_crp42602y_set_error(uint8_t in_err);							// Freeze transport due to error.
-uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);		// Convert user mode to transport mode for CRP42602Y mechanism
+void mech_crp42602y_set_error(uint8_t in_err);							// Freeze transport due to error
+uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);		// Convert user mode to transport mode
 void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
 void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);	// Start transition from current mode to target mode
 void mech_crp42602y_user2target(uint8_t *usr_mode, uint8_t *play_dir);	// Take in user desired mode and set new target mode
 void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Control mechanism in static mode (not transitioning between modes)
 void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir);		// Transition through modes, timing solenoid
-void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine for CRP42602Y tape mech
+void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine
 uint8_t mech_crp42602y_get_mode();										// Get user-level mode of the transport
 uint8_t mech_crp42602y_get_transition();								// Get transition timer count
 uint8_t mech_crp42602y_get_error();										// Get transport error
-void mech_crp42602y_UART_dump_mode(uint8_t in_mode);					// Print CRP42602Y transport mode alias
+void mech_crp42602y_UART_dump_mode(uint8_t in_mode);					// Print transport mode alias

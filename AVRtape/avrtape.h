@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 avrtape.h
 
-Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,6 +43,9 @@ Processes switches reading, user input (buttons) reading, mode indication, timin
 #ifdef SUPP_TANASHIN_MECH
 #include "mech_tanashin.h"
 #endif /* SUPP_TANASHIN_MECH */
+#ifdef SUPP_KENWOOD_MECH
+#include "mech_knwd.h"
+#endif /* SUPP_KENWOOD_MECH */
 
 // Flags for [u8i_interrupts] and [u8_buf_interrupts].
 #define INTR_SYS_TICK		(1<<0)

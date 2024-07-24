@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 common_log.h
 
-Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -58,6 +58,14 @@ Common logic defines for tape transport processing and enabled features.
 
 #define SLEEP_INHIBIT_2HZ	6		// Time for sleep inhibition with 2HZ rate
 
+// Maximum wait before capstan shutdown.
+#define IDLE_CAP_NO_TAPE			7500	// 15 s
+#define IDLE_CAP_TAPE_IN			60000	// 120 s
+#define IDLE_CAP_MAX				IDLE_CAP_TAPE_IN
+
+// Maximum number of tries to switch mode.
+#define MODE_REP_MAX				4
+
 // State of tape playback direction.
 enum
 {
@@ -68,7 +76,8 @@ enum
 enum
 {
 	TTR_TYPE_CRP42602Y,				// CRP42602Y mechanism from AliExpress
-	TTR_TYPE_TANASHIN				// Tanashin-clone mechanism from AliExpress
+	TTR_TYPE_KENWOOD,				// Kenwood mechanism
+	TTR_TYPE_TANASHIN,				// Tanashin TN-21ZLG clone mechanism from AliExpress
 };
 
 // User-selectable modes for [u8_user_mode].

@@ -29,7 +29,7 @@ char u8a_buf[48];							// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.12";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v0.13";			// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";			// Firmware description
@@ -773,11 +773,6 @@ void process_user(void)
 	// Save mode.
 	last_user_mode = u8_user_mode;
 #endif /* UART_TERM */
-	if(((kbd_state&USR_BTN_RECORD)!=0)&&(u8_user_mode!=USR_MODE_STOP))
-	{
-		// Ignore all RECORD+ combinations if not in STOP.
-		kbd_pressed&=~(USR_BTN_REWIND|USR_BTN_PLAY_REV|USR_BTN_STOP|USR_BTN_PLAY|USR_BTN_FFORWARD);
-	}
 	// Always clear RECORD events.
 	kbd_pressed&=~USR_BTN_RECORD;
 	// Button priority: from lowest to highest.
@@ -825,23 +820,24 @@ void process_user(void)
 			if((kbd_pressed&USR_BTN_PLAY)!=0)
 			{
 				kbd_pressed&=~USR_BTN_PLAY;
-				// Check if current mode is playback already and check current direction.
-				if(u8_user_mode==USR_MODE_PLAY_FWD)
+				// Check record button state.
+				if((kbd_state&USR_BTN_RECORD)==0)
 				{
-					// Swap tape side.
-					u8_user_mode = USR_MODE_PLAY_REV;
-				}
-				else if(u8_user_mode==USR_MODE_PLAY_REV)
-				{
-					// Swap tape side.
-					u8_user_mode = USR_MODE_PLAY_FWD;
-				}
-				else
-				{
-					// Current mode is not PLAY.
-					if((kbd_state&USR_BTN_RECORD)==0)
+					// Record is NOT requested.
+					// Check if current mode is playback already and check current direction.
+					if(u8_user_mode==USR_MODE_PLAY_FWD)
 					{
-						// Record is not requested or TTR is not in STOP.
+						// Swap tape side.
+						u8_user_mode = USR_MODE_PLAY_REV;
+					}
+					else if(u8_user_mode==USR_MODE_PLAY_REV)
+					{
+						// Swap tape side.
+						u8_user_mode = USR_MODE_PLAY_FWD;
+					}
+					else
+					{
+						// Record is NOT requested or TTR is not in PLAY.
 						// Check last playback direction.
 						if(u8_last_play_dir==PB_DIR_FWD)
 						{
@@ -854,42 +850,55 @@ void process_user(void)
 							u8_user_mode = USR_MODE_PLAY_REV;
 						}
 					}
-					else
+				}
+				else
+				{
+					// Record is requested.
+					// Check if recording already in progress.
+					if(u8_user_mode==USR_MODE_REC_FWD)
 					{
-						// Record is requested and TTR is in STOP.
+						// Already recording (in forward).
+						// Check reverse write protect switch.
+						if((sw_state&TTR_SW_NOREC_REV)==0)
+						{
+							// Recording in reverse is allowed.
+							// Swap tape side.
+							u8_user_mode = USR_MODE_REC_REV;
+						}
+					}
+					else if(u8_user_mode==USR_MODE_REC_REV)
+					{
+						// Already recording (in reverse).
+						// Check forward write protect switch.
+						if((sw_state&TTR_SW_NOREC_FWD)==0)
+						{
+							// Recording in forward is allowed.
+							// Swap tape side.
+							u8_user_mode = USR_MODE_REC_FWD;
+						}
+					}
+					else if(u8_user_mode==USR_MODE_STOP)
+					{
+						// TTR in STOP (allow starting recording only from STOP for erasure protection).
 						// Check last playback direction.
 						if(u8_last_play_dir==PB_DIR_FWD)
 						{
-							// Last direction: forward.
 							// Check record inhibit switch for forward direction.
 							if((sw_state&TTR_SW_NOREC_FWD)==0)
 							{
-								// Recording is allowed.
+								// Recording in forward is allowed.
 								// Start/resume recording in forward direction.
 								u8_user_mode = USR_MODE_REC_FWD;
-							}
-							else
-							{
-								// Record is inhibited.
-								// Start/resume playback in forward direction.
-								u8_user_mode = USR_MODE_PLAY_FWD;
 							}
 						}
 						else
 						{
-							// Last direction: reverse.
 							// Check record inhibit switch for reverse direction.
 							if((sw_state&TTR_SW_NOREC_REV)==0)
 							{
-								// Recording is allowed.
+								// Recording in reverse is allowed.
 								// Start/resume recording in reverse direction.
 								u8_user_mode = USR_MODE_REC_REV;
-							}
-							else
-							{
-								// Record is inhibited.
-								// Start/resume playback in reverse direction.
-								u8_user_mode = USR_MODE_PLAY_REV;
 							}
 						}
 					}
@@ -903,7 +912,7 @@ void process_user(void)
 			// Two playback buttons (for each direction).
 			if((kbd_state&USR_BTN_RECORD)==0)
 			{
-				// Record is not requested or TTR is not in STOP.
+				// Record is not requested.
 				if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
 				{
 					kbd_pressed&=~USR_BTN_PLAY_REV;
@@ -923,35 +932,31 @@ void process_user(void)
 				if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
 				{
 					kbd_pressed&=~USR_BTN_PLAY_REV;
-					// Check record inhibit switch for reverse direction.
-					if((sw_state&TTR_SW_NOREC_REV)==0)
-					{
-						// Recording is allowed.
-						// Start/resume recording in reverse direction (less priority).
-						u8_user_mode = USR_MODE_REC_REV;
-					}
-					else
-					{
-						// Record is inhibited.
-						// Start/resume playback in reverse direction (less priority).
-						u8_user_mode = USR_MODE_PLAY_REV;
+					// Check if TTR is in STOP or RECORD forward.
+					if((u8_user_mode==USR_MODE_STOP)||(u8_user_mode==USR_MODE_REC_FWD))
+					{ 
+						// Check record inhibit switch for reverse direction.
+						if((sw_state&TTR_SW_NOREC_REV)==0)
+						{
+							// Recording is allowed.
+							// Start/resume recording in reverse direction (less priority).
+							u8_user_mode = USR_MODE_REC_REV;
+						}
 					}
 				}
 				if((kbd_pressed&USR_BTN_PLAY)!=0)
 				{
 					kbd_pressed&=~USR_BTN_PLAY;
-					// Check record inhibit switch for forward direction.
-					if((sw_state&TTR_SW_NOREC_FWD)==0)
+					// Check if TTR is in STOP or RECORD reverse.
+					if((u8_user_mode==USR_MODE_STOP)||(u8_user_mode==USR_MODE_REC_REV))
 					{
-						// Recording is allowed.
-						// Start/resume recording in forward direction (more priority).
-						u8_user_mode = USR_MODE_REC_FWD;
-					}
-					else
-					{
-						// Record is inhibited.
-						// Start/resume playback in forward direction (more priority).
-						u8_user_mode = USR_MODE_PLAY_FWD;
+						// Check record inhibit switch for forward direction.
+						if((sw_state&TTR_SW_NOREC_FWD)==0)
+						{
+							// Recording is allowed.
+							// Start/resume recording in forward direction (more priority).
+							u8_user_mode = USR_MODE_REC_FWD;
+						}
 					}
 				}
 			}
@@ -974,127 +979,6 @@ void process_user(void)
 #endif /* UART_TERM */
 }
 
-void mech_log()
-{
-	if(u8_user_mode!=USR_MODE_STOP)
-	{
-		/*if(u8_user_mode==USR_MODE_FWIND_REV)
-		{
-			if(u8_dbg_timer>10)
-			{
-				u8_dbg_timer -= 5;
-				sprintf(u8a_buf, "REP- @|%03u\n\r", u8_dbg_timer);
-				UART_add_string(u8a_buf);
-			}
-			u8_user_mode = u8_transport_mode;
-		}
-		if(u8_user_mode==USR_MODE_FWIND_FWD)
-		{
-			if(u8_dbg_timer<240)
-			{
-				u8_dbg_timer += 5;
-				sprintf(u8a_buf, "REP+ @|%03u\n\r", u8_dbg_timer);
-				UART_add_string(u8a_buf);
-			}
-			u8_user_mode = u8_transport_mode;
-		}
-		if(u8_user_mode==USR_MODE_PLAY_FWD)
-		{
-			// Preset time for full playback selection cycle from STOP.
-			//u8_transition_timer = TIM_TANASHIN_DLY_PB_WAIT;
-			u8_transition_timer = 255;
-			SOLENOID_ON;
-		}*/
-		if(u8_user_mode==USR_MODE_PLAY_FWD)
-		{
-			// Preset time for full cycle from STOP to PLAY.
-			//u8_transition_timer = TIM_TANA_DLY_PB_WAIT;
-		}
-		else if(u8_user_mode==USR_MODE_FWIND_REV)
-		{
-			// Preset time for full cycle from PLAY to FAST WIND.
-			//u8_transition_timer = TIM_TANA_DLY_FWIND_WAIT;
-		}
-		else if(u8_user_mode==USR_MODE_FWIND_FWD)
-		{
-			// Preset time for full cycle from PLAY to FAST WIND.
-			//u8_transition_timer = TIM_TANA_DLY_FWIND_WAIT;
-		}
-		u8_user_mode = USR_MODE_STOP;
-	}
-
-	if(u8_transition_timer>0)
-	{
-#ifdef UART_TERM
-		uint8_t sol_state;
-		sol_state = 0;
-		if(SOLENOID_STATE!=0) sol_state = 1;
-		sprintf(u8a_buf, "MODE|>%03u<|%02x|%01x\n\r", u8_transition_timer, sw_state, sol_state);
-		UART_add_string(u8a_buf);
-#endif /* UART_TERM */
-
-		/*if(u8_user_mode==USR_MODE_PLAY_FWD)
-		{
-			if(u8_transition_timer>(TIM_TANA_DLY_PB_WAIT-TIM_TANA_DLY_SW_ACT))
-			{
-				// Enable solenoid to start gear rotation.
-				SOLENOID_ON;
-			}
-			else
-			{
-				// Disable solenoid for the reset of the PLAY selection cycle.
-				SOLENOID_OFF;
-			}
-		}
-		else if((u8_user_mode==USR_MODE_FWIND_FWD)||(u8_user_mode==USR_MODE_FWIND_REV))
-		{
-			if(u8_transition_timer>(TIM_TANA_DLY_FWIND_WAIT-TIM_TANA_DLY_SW_ACT))
-			{
-				// Enable solenoid to start gear rotation.
-				SOLENOID_ON;
-			}
-			else if(u8_transition_timer>(TIM_TANA_DLY_FWIND_WAIT-TIM_TANA_DLY_WAIT_REW_ACT))
-			{
-				// Disable solenoid, wait for the decision making point for fast wind direction.
-				SOLENOID_OFF;
-			}
-			else if((u8_transition_timer>(TIM_TANA_DLY_FWIND_WAIT-TIM_TANA_DLY_WAIT_REW_ACT-TIM_TANA_DLY_SW_ACT))&&(u8_user_mode==USR_MODE_FWIND_REV))
-			{
-				// Enable solenoid for the rewind.
-				SOLENOID_ON;
-			}
-			else
-			{
-				// Disable solenoid for the reset of the FAST WIND selection cycle.
-				SOLENOID_OFF;
-			}
-		}*/
-		u8_transition_timer--;
-		/*if(u8_transition_timer<(u8_dbg_timer-TIM_TANASHIN_DLY_SW_ACT))
-		{
-			SOLENOID_OFF;
-		}
-		else if(u8_transition_timer<u8_dbg_timer)
-		{
-			SOLENOID_ON;
-		}
-		else if(u8_transition_timer<(255-TIM_TANASHIN_DLY_SW_ACT))
-		{
-			SOLENOID_OFF;
-		}*/
-		if(u8_transition_timer==0)
-		{
-			SOLENOID_OFF;
-			//u8_transport_mode = TTR_42602_MODE_STOP;
-			u8_user_mode = USR_MODE_STOP;
-		}
-
-	}
-#ifdef UART_TERM
-	UART_dump_out();
-#endif /* UART_TERM */
-}
-
 //-------------------------------------- Main function.
 int main(void)
 {
@@ -1113,6 +997,9 @@ int main(void)
 #ifdef SUPP_CRP42602Y_MECH
 	u8_mech_type = TTR_TYPE_CRP42602Y;
 #endif /* SUPP_CRP42602Y_MECH */
+#ifdef SUPP_KENWOOD_MECH
+	u8_mech_type = TTR_TYPE_KENWOOD;
+#endif /* SUPP_KENWOOD_MECH */
 #ifdef SUPP_TANASHIN_MECH
 	u8_mech_type = TTR_TYPE_TANASHIN;
 	u16_features &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_PB_LOOP|TTR_FEA_TWO_PLAYS);	// Disable functions for non-reverse mech.
@@ -1136,6 +1023,12 @@ int main(void)
 		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_crp42602y_mech); UART_add_flash_string((uint8_t *)cch_endl);
 	}
 #endif /* SUPP_CRP42602Y_MECH */
+#ifdef SUPP_KENWOOD_MECH
+	if(u8_mech_type==TTR_TYPE_KENWOOD)
+	{
+		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_knwd_mech); UART_add_flash_string((uint8_t *)cch_endl);
+	}
+#endif /* SUPP_KENWOOD_MECH */
 #ifdef SUPP_TANASHIN_MECH
 	if(u8_mech_type==TTR_TYPE_TANASHIN)
 	{
@@ -1160,9 +1053,6 @@ int main(void)
 	{
 		u8_stest_timer = 100;
 	}
-
-	// Enable interrupts globally.
-	sei();
 
     // Main cycle.
     while(1)
@@ -1265,6 +1155,16 @@ int main(void)
 						u8_transport_error = mech_crp42602y_get_error();
 #endif /* SUPP_CRP42602Y_MECH */
 					}
+					else if(u8_mech_type==TTR_TYPE_KENWOOD)
+					{
+#ifdef SUPP_KENWOOD_MECH
+						// Processing for Kenwood mechanism.
+						mech_knwd_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+						u8_mech_mode = mech_knwd_get_mode();
+						u8_transition_timer = mech_knwd_get_transition();
+						u8_transport_error = mech_knwd_get_error();
+#endif /* SUPP_KENWOOD_MECH */
+					}
 					else if(u8_mech_type==TTR_TYPE_TANASHIN)
 					{
 #ifdef SUPP_TANASHIN_MECH
@@ -1274,10 +1174,6 @@ int main(void)
 						u8_transition_timer = mech_tanashin_get_transition();
 						u8_transport_error = mech_tanashin_get_error();
 #endif /* SUPP_TANASHIN_MECH */
-					}
-					else
-					{
-						mech_log();
 					}
 				}
 #ifdef UART_TERM

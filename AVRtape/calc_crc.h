@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 calc_crc.h
 
-Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

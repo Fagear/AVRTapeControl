@@ -23,7 +23,7 @@ void mech_crp42602y_set_error(uint8_t in_err)
 	u8_crp42602y_error += in_err;
 }
 
-//-------------------------------------- Convert user mode to transport mode for CRP42602Y mechanism.
+//-------------------------------------- Convert user mode to transport mode.
 uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir)
 {
 	if(in_mode==USR_MODE_PLAY_FWD)
@@ -229,7 +229,7 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 	{
 		// Transport supposed to be in STOP.
 		// Increase idle timer.
-		if(u16_crp42602y_idle_time<IDLE_42602_MAX)
+		if(u16_crp42602y_idle_time<IDLE_CAP_MAX)
 		{
 			u16_crp42602y_idle_time++;
 		}
@@ -246,15 +246,16 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 #endif /* UART_TERM */
 			// Increase number of retries before failing.
 			u8_crp42602y_retries++;
-			if(u8_crp42602y_retries>=REP_42602_MAX)
+			if(u8_crp42602y_retries>=MODE_REP_MAX)
 			{
-				// Force STOP if transport is not in STOP.
+				// Maximum retries, to go HALT.
 				u8_crp42602y_trans_timer = TIM_42602_DLY_WAIT_STOP;
 				u8_crp42602y_mode = TTR_42602_SUBMODE_INIT;
 				u8_crp42602y_target_mode = TTR_42602_MODE_HALT;
 			}
 			else
 			{
+				// Force STOP if transport is not in STOP.
 				u8_crp42602y_trans_timer = TIM_42602_DLY_WAIT_STOP;
 				u8_crp42602y_mode = TTR_42602_SUBMODE_TO_STOP;
 			}
@@ -300,6 +301,10 @@ void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *t
 		if((*tacho)>TACHO_42602_PLAY_DLY_MAX)
 		{
 			// No signal from takeup tachometer for too long.
+			// Turn mute on.
+			MUTE_EN_ON;
+			// Turn recording circuit off.
+			REC_EN_OFF;
 			// Perform auto-stop.
 			u8_crp42602y_target_mode = TTR_42602_MODE_STOP;
 			// Set default "last playback" as forward, it will be corrected below if required.
@@ -576,6 +581,10 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 		CAPSTAN_ON;
 		// Turn off solenoid, let mechanism stabilize.
 		SOLENOID_OFF;
+		// Turn on mute.
+		MUTE_EN_ON;
+		// Turn off recording circuit.
+		REC_EN_OFF;
 		if(u8_crp42602y_trans_timer==0)
 		{
 			// Transition is done.
@@ -585,58 +594,24 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 	}
 	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_TO_STOP)
 	{
+		// Starting transition to STOP mode.
 		// Turn on capstan motor.
 		CAPSTAN_ON;
-		// Pull solenoid in to initiate mode change to STOP.
+		// Activate solenoid in to initiate mode change to STOP.
 		SOLENOID_ON;
 		if(u8_crp42602y_trans_timer<=(TIM_42602_DLY_WAIT_STOP-TIM_42602_DLY_STOP))
 		{
 			// Initial time for activating mode transition to STOP has passed.
-			// Release solenoid.
+			// Deactivate solenoid.
 			SOLENOID_OFF;
 			// Wait for transport to transition to STOP.
 			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_STOP;
 		}
 	}
-	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_TO_ACTIVE)
-	{
-		// Pull solenoid in to initiate mode change to active mode.
-		SOLENOID_ON;
-		u8_crp42602y_mode = TTR_42602_SUBMODE_ACT;
-	}
-	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_TO_HALT)
-	{
-		// Pull solenoid in to stop mechanism in HALT mode.
-		SOLENOID_ON;
-		u8_crp42602y_mode = TTR_42602_MODE_HALT;
-	}
-	else if(u8_crp42602y_mode==TTR_42602_MODE_HALT)
-	{
-		// Desired mode: recovery STOP in HALT mode.
-		if(u8_crp42602y_trans_timer<=(TIM_42602_DLY_WAIT_STOP-TIM_42602_DLY_STOP))
-		{
-			// Initial time for activating mode transition to STOP has passed.
-			// Release solenoid while waiting for transport to transition to STOP.
-			SOLENOID_OFF;
-		}
-	}
-	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_INIT)
-	{
-		// Start-up delay.
-		// Keep solenoid off.
-		SOLENOID_OFF;
-		// Keep capstan on.
-		CAPSTAN_ON;
-		// Turn on mute.
-		MUTE_EN_ON;
-		// Turn off recording circuit.
-		REC_EN_OFF;
-	}
-	//else if(u8_crp42602y_target_mode==TTR_42602_MODE_STOP)
 	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_WAIT_STOP)
 	{
-		// Desired mode: STOP.
-		// Keep solenoid off.
+		// Transitioning to STOP mode.
+		// Deactivate solenoid.
 		SOLENOID_OFF;
 		if(u8_crp42602y_trans_timer==0)
 		{
@@ -654,7 +629,7 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 #endif /* UART_TERM */
 				// Increase number of retries before failing.
 				u8_crp42602y_retries++;
-				if(u8_crp42602y_retries>=REP_42602_MAX)
+				if(u8_crp42602y_retries>=MODE_REP_MAX)
 				{
 #ifdef UART_TERM
 					UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
@@ -676,86 +651,127 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 			}
 		}
 	}
-	if((u8_crp42602y_target_mode>=TTR_42602_MODE_PB_FWD)&&(u8_crp42602y_target_mode<=TTR_42602_MODE_FW_REV_HD_REV))
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_TO_ACTIVE)
 	{
-		// Target mode: any active mode (PLAYBACK/RECORD/FAST WIND).
-		uint8_t u8_inv_timer;
-		if(TIM_42602_DLY_ACTIVE>=u8_crp42602y_trans_timer)
+		// Starting transition to any active mode.
+		// Turn on capstan motor.
+		CAPSTAN_ON;
+		// Activate solenoid in to initiate mode change to active mode.
+		SOLENOID_ON;
+		// Update last playback direction.
+		if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||(u8_crp42602y_target_mode==TTR_42602_MODE_RC_FWD))
 		{
-			// Invert timer direction.
-			u8_inv_timer = TIM_42602_DLY_ACTIVE - u8_crp42602y_trans_timer;
+			// Direction: forward.
+			(*play_dir) = PB_DIR_FWD;
 		}
-		else
+		else if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV))
 		{
-			// Overflow protection.
-			u8_inv_timer = 0;
+			// Direction: reverse.
+			(*play_dir) = PB_DIR_REV;
 		}
-		if(u8_crp42602y_trans_timer==0)
+		u8_crp42602y_mode = TTR_42602_SUBMODE_ACT;
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_ACT)
+	{
+		// Transitioning to active mode.
+		// Waiting for first "gray zone" before pinch/head direction selection.
+		if(u8_crp42602y_trans_timer<(TIM_42602_DLY_ACTIVE-TIM_42602_DLY_WAIT_HEAD))
 		{
-			// Transition is done.
-			// Release solenoid.
-			SOLENOID_OFF;
-			// Save new transport state.
-			u8_crp42602y_mode = u8_crp42602y_target_mode;
-			// Check if mechanical STOP state wasn't cleared.
-			if((in_sws&TTR_SW_STOP)!=0)
+			// Go to the next stage.
+			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_DIR;
+			// Lookup next stage solenoid state.
+			if((SOLENOID_STATE!=0)&&
+				((u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_REV_HD_REV)))
 			{
-#ifdef UART_TERM
-				UART_add_flash_string((uint8_t *)cch_active_stop); UART_add_flash_string((uint8_t *)cch_endl);
-				UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
-#endif /* UART_TERM */
-				// Mechanically mode didn't change from STOP, register an error.
-				mech_crp42602y_set_error(TTR_ERR_NO_CTRL);
-			}
-			else
-			{
-				// STOP condition successfully cleared.
-				// Update last playback direction.
-				if((u8_crp42602y_mode==TTR_42602_MODE_PB_FWD)||(u8_crp42602y_mode==TTR_42602_MODE_RC_FWD))
-				{
-					(*play_dir) = PB_DIR_FWD;
-					// Turn off mute.
-					MUTE_EN_OFF;
-				}
-				else if((u8_crp42602y_mode==TTR_42602_MODE_PB_REV)||(u8_crp42602y_mode==TTR_42602_MODE_RC_REV))
-				{
-					(*play_dir) = PB_DIR_REV;
-					// Turn off mute.
-					MUTE_EN_OFF;
-				}
-				// Reset retry count.
-				u8_crp42602y_retries = 0;
-			}
-		}
-		// Transition stages from last to first (due to timing overlapping).
-		else if(u8_inv_timer>=TIM_42602_DLY_WAIT_MODE)
-		{
-			// Active part of the cyclogram is finished, waiting for transport to reach stable state.
-			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_RUN;
-			// Release solenoid.
-			SOLENOID_OFF;
-		}
-		else if(u8_inv_timer>=TIM_42602_DLY_TAKEUP_DIR)
-		{
-			// Takeup direction range.
-			u8_crp42602y_mode = TTR_42602_SUBMODE_TU_DIR_SEL;
-			if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_FWD)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV))
-			{
-				// Pull solenoid in to select takeup in forward direction.
+				// Head should be turned into REVERSE.
+				// Solenoid is already on from the last stage, next stage will also have it on.
+				// No need to jerk the solenoid, keep it on.
 				SOLENOID_ON;
 			}
 			else
 			{
-				// Keep solenoid off for takeup in reverse direction
+				// Head should be turned into FORWARD.
+				// Deactivate solenoid entering "gray zone".
+				SOLENOID_OFF;
+			}
+			if((u8_crp42602y_target_mode==TTR_42602_MODE_RC_FWD)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV))
+			{
+				// Turn on recording circuit (before heads contact the tape).
+				REC_EN_ON;
+			}
+		}
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_WAIT_DIR)
+	{
+		// Transitioning to active mode.
+		// Waiting for first decision point: pinch/head direction.
+		if(u8_crp42602y_trans_timer<(TIM_42602_DLY_ACTIVE-TIM_42602_DLY_HEAD_DIR))
+		{
+			// Decision point reached.
+			// Pinch/head direction range.
+			u8_crp42602y_mode = TTR_42602_SUBMODE_HD_DIR_SEL;
+			if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_REV_HD_REV))
+			{
+				// Activate solenoid in for head in reverse direction.
+				SOLENOID_ON;
+			}
+			else
+			{
+				// Keep solenoid off for head in forward direction.
 				SOLENOID_OFF;
 			}
 		}
-		else if(u8_inv_timer>=TIM_42602_DLY_WAIT_TAKEUP)
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_HD_DIR_SEL)
+	{
+		// Transitioning to active mode.
+		// Waiting for second "gray zone" before pinch engage selection.
+		if(u8_crp42602y_trans_timer<(TIM_42602_DLY_ACTIVE-TIM_42602_DLY_WAIT_PINCH))
 		{
-			// Pinch roller engaged, wait for pickup direction range.
+			// Pinch direction selection finished, wait for pinch range.
+			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_PINCH;
+			// Keep solenoid off for the "gray zone".
+			SOLENOID_OFF;
+		}
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_WAIT_PINCH)
+	{
+		// Transitioning to active mode.
+		// Waiting for second decision point: pinch engage.
+		if(u8_crp42602y_trans_timer<(TIM_42602_DLY_ACTIVE-TIM_42602_DLY_PINCH_EN))
+		{
+			// Decision point reached.
+			// Pinch engage range.
+			u8_crp42602y_mode = TTR_42602_SUBMODE_PINCH_SEL;
+			if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_FWD)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV))
+			{
+				// Activate solenoid in to engage pinch roller.
+				SOLENOID_ON;
+			}
+			else
+			{
+				// Keep solenoid off to select fast winding.
+				SOLENOID_OFF;
+			}
+		}
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_PINCH_SEL)
+	{
+		// Transitioning to active mode.
+		// Waiting for third "gray zone" before takeup direction selection.
+		if(u8_crp42602y_trans_timer<(TIM_42602_DLY_ACTIVE-TIM_42602_DLY_WAIT_TAKEUP))
+		{
+			// Pinch roller activation range done, wait for takeup direction range.
 			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_TAKEUP;
 			// Lookup next stage solenoid state.
 			if((SOLENOID_STATE!=0)&&
@@ -770,81 +786,107 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 			}
 			else
 			{
-				// Release solenoid entering "gray zone".
+				// Deactivate solenoid entering "gray zone".
 				SOLENOID_OFF;
-			}
-		}
-		else if(u8_inv_timer>=TIM_42602_DLY_PINCH_EN)
-		{
-			// Pinch engage range.
-			u8_crp42602y_mode = TTR_42602_SUBMODE_PINCH_SEL;
-			if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_FWD)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV))
-			{
-				// Pull solenoid in to enable pinch roller.
-				SOLENOID_ON;
-			}
-			else
-			{
-				// Keep solenoid off to select fast winding.
-				SOLENOID_OFF;
-			}
-		}
-		else if(u8_inv_timer>=TIM_42602_DLY_WAIT_PINCH)
-		{
-			// Pinch direction selection finished, wait for pinch range.
-			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_PINCH;
-			// Keep solenoid off for the "gray zone".
-			SOLENOID_OFF;
-		}
-		else if(u8_inv_timer>=TIM_42602_DLY_HEAD_DIR)
-		{
-			// Pinch/head direction range.
-			u8_crp42602y_mode = TTR_42602_SUBMODE_HD_DIR_SEL;
-			if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_REV_HD_REV))
-			{
-				// Pull solenoid in for head in reverse direction.
-				SOLENOID_ON;
-			}
-			else
-			{
-				// Keep solenoid off for head in forward direction.
-				SOLENOID_OFF;
-			}
-		}
-		else if(u8_inv_timer>=TIM_42602_DLY_WAIT_HEAD)
-		{
-			// Mode change started, wait for pinch/head direction selection region.
-			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_DIR;
-			// Lookup next stage solenoid state.
-			if((SOLENOID_STATE!=0)&&
-				((u8_crp42602y_target_mode==TTR_42602_MODE_PB_REV)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_REV_HD_REV)))
-			{
-				// Solenoid is already on from the last stage, next stage will also have it on.
-				// No need to jerk the solenoid, keep it on.
-				SOLENOID_ON;
-			}
-			else
-			{
-				// Release solenoid entering "gray zone".
-				SOLENOID_OFF;
-			}
-			if((u8_crp42602y_target_mode==TTR_42602_MODE_RC_FWD)||
-				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_REV))
-			{
-				// Turn on recording circuit (before heads contact the tape).
-				REC_EN_ON;
 			}
 		}
 	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_WAIT_TAKEUP)
+	{
+		// Transitioning to active mode.
+		// Waiting for third decision point: takeup direction.
+		if(u8_crp42602y_trans_timer<(TIM_42602_DLY_ACTIVE-TIM_42602_DLY_TAKEUP_DIR))
+		{
+			// Decision point reached.
+			// Takeup direction range.
+			u8_crp42602y_mode = TTR_42602_SUBMODE_TU_DIR_SEL;
+			if((u8_crp42602y_target_mode==TTR_42602_MODE_PB_FWD)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_RC_FWD)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD)||
+				(u8_crp42602y_target_mode==TTR_42602_MODE_FW_FWD_HD_REV))
+			{
+				// Activate solenoid in to select takeup in forward direction.
+				SOLENOID_ON;
+			}
+			else
+			{
+				// Keep solenoid off for takeup in reverse direction.
+				SOLENOID_OFF;
+			}
+		}
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_TU_DIR_SEL)
+	{
+		// Transitioning to active mode.
+		// Waiting for deactivating point.
+		if(u8_crp42602y_trans_timer<(TIM_42602_DLY_ACTIVE-TIM_42602_DLY_WAIT_MODE))
+		{
+			// Every decision was make, now just waiting for cycle to finish.
+			u8_crp42602y_mode = TTR_42602_SUBMODE_WAIT_RUN;
+			// Release solenoid.
+			SOLENOID_OFF;
+		}
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_WAIT_RUN)
+	{
+		// Transitioning to active mode.
+		// Waiting for cycle to finish.
+		if(u8_crp42602y_trans_timer==0)
+		{
+			// Transition is done.
+			// Deactivate solenoid.
+			SOLENOID_OFF;
+			// Save new transport state.
+			u8_crp42602y_mode = u8_crp42602y_target_mode;
+			// Check if mechanical STOP state wasn't cleared.
+			if((in_sws&TTR_SW_STOP)!=0)
+			{
+#ifdef UART_TERM
+				UART_add_flash_string((uint8_t *)cch_active_stop); UART_add_flash_string((uint8_t *)cch_endl);
+				UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_halt_stop2);
+#endif /* UART_TERM */
+				// Mechanically mode didn't change from STOP, register an error.
+				mech_crp42602y_set_error(TTR_ERR_NO_CTRL);
+				// Set default direction.
+				(*play_dir) = PB_DIR_FWD;
+			}
+			else
+			{
+				// STOP condition successfully cleared.
+				// Turn off mute for PLAY/RECORD modes.
+				if((u8_crp42602y_mode==TTR_42602_MODE_PB_FWD)||
+					(u8_crp42602y_mode==TTR_42602_MODE_RC_FWD)||
+					(u8_crp42602y_mode==TTR_42602_MODE_PB_REV)||
+					(u8_crp42602y_mode==TTR_42602_MODE_RC_REV))
+				{
+					// Turn off mute.
+					MUTE_EN_OFF;
+				}
+				// Reset retry count.
+				u8_crp42602y_retries = 0;
+			}
+		}
+	}
+	else if(u8_crp42602y_mode==TTR_42602_SUBMODE_TO_HALT)
+	{
+		// Starting transition to HALT mode.
+		// Turn on capstan motor.
+		CAPSTAN_ON;
+		// Activate solenoid in to stop mechanism in HALT mode.
+		SOLENOID_ON;
+		u8_crp42602y_mode = TTR_42602_MODE_HALT;
+	}
+	else if(u8_crp42602y_mode==TTR_42602_MODE_HALT)
+	{
+		// Desired mode: recovery STOP in HALT mode.
+		if(u8_crp42602y_trans_timer<=(TIM_42602_DLY_WAIT_STOP-TIM_42602_DLY_STOP))
+		{
+			// Initial time for activating mode transition to STOP has passed.
+			// Deactivate solenoid while waiting for transport to transition to STOP.
+			SOLENOID_OFF;
+		}
+	}
+	
 #ifdef UART_TERM
 	if((u8_crp42602y_trans_timer==0)&&(u8_crp42602y_mode!=TTR_42602_MODE_HALT))
 	{
@@ -854,7 +896,7 @@ void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir)
 #endif /* UART_TERM */
 }
 
-//-------------------------------------- Perform tape transport state machine for CRP42602Y tape mech.
+//-------------------------------------- Perform tape transport state machine.
 void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir)
 {
 	// Mode overflow protection.
@@ -862,8 +904,7 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 	{
 		// Register logic error.
 #ifdef UART_TERM
-		UART_add_flash_string((uint8_t *)cch_halt_stop3);
-		UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_endl);
+		UART_add_flash_string((uint8_t *)cch_halt_stop3); UART_add_flash_string((uint8_t *)cch_ttr_halt); UART_add_flash_string((uint8_t *)cch_endl);
 #endif /* UART_TERM */
 		mech_crp42602y_set_error(TTR_ERR_LOGIC_FAULT);
 	}
@@ -926,7 +967,7 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 		if((in_sws&TTR_SW_TAPE_IN)==0)
 		{
 			// No tape is present.
-			if(u16_crp42602y_idle_time>=IDLE_42602_NO_TAPE)
+			if(u16_crp42602y_idle_time>=IDLE_CAP_NO_TAPE)
 			{
 #ifdef UART_TERM
 				if(CAPSTAN_STATE!=0)
@@ -941,7 +982,7 @@ void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t 
 		else
 		{
 			// Tape is loaded.
-			if(u16_crp42602y_idle_time>=IDLE_42602_TAPE_IN)
+			if(u16_crp42602y_idle_time>=IDLE_CAP_TAPE_IN)
 			{
 #ifdef UART_TERM
 				if(CAPSTAN_STATE!=0)
@@ -1022,7 +1063,7 @@ uint8_t mech_crp42602y_get_error()
 	return u8_crp42602y_error;
 }
 
-//-------------------------------------- Print CRP42602Y transport mode alias.
+//-------------------------------------- Print transport mode alias.
 void mech_crp42602y_UART_dump_mode(uint8_t in_mode)
 {
 #ifdef UART_TERM

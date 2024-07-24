@@ -1,7 +1,7 @@
 /**************************************************************************************************************************************************************
 config.h
 
-Copyright © 2023 Maksim Kryukov <fagear@mail.ru>
+Copyright © 2024 Maksim Kryukov <fagear@mail.ru>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ Defines/switches for configuring compile-time options.
 #define CONFIG_H_
 
 // Transport support.
-//#define SUPP_CRP42602Y_MECH			// CRP42602Y mechanism from AliExpress (LG-like)
-#define SUPP_TANASHIN_MECH			// Tanashin-clone
+#define SUPP_CRP42602Y_MECH			// CRP42602Y mechanism from AliExpress (LG-like)
+//#define SUPP_TANASHIN_MECH			// Tanashin-clone
 //#define SUPP_KENWOOD_MECH			// Kenwood mechanism
 
 // Stats saving into EEPROM
