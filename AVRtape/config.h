@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2021-04-13
 
+Part of the [AVRTapeControl] project.
 Configuration file.
 Defines/switches for configuring compile-time options.
 

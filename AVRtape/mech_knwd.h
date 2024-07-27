@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2024-07-09
 
+Part of the [AVRTapeControl] project.
 State machine for tape transport (TTR) mechanism used in Kenwood Mini Hi-Fis. Like in RXD-500~760.
 Belt-driven, one motor (for capstan, take-up and mode switching), one solenoid (for mode switching).
 This mechanism has two capstans and supports reverse operations.
@@ -51,12 +52,12 @@ enum
 	TTR_KNWD_MODE_STOP,				// Stable STOP state
 	TTR_KNWD_SUBMODE_TO_PLAY,		// Start transition to PLAYBACK
 	TTR_KNWD_SUBMODE_WAIT_PLAY,		// Waiting for mechanism to transition to PLAYBACK
+	TTR_KNWD_SUBMODE_TO_FWIND,		// Start transition to FAST WIND
+	TTR_KNWD_SUBMODE_WAIT_FWIND,	// Waiting for mechanism to transition to FAST WIND
 	TTR_KNWD_MODE_PB_FWD,			// Stable PLAYBACK in forward direction
 	TTR_KNWD_MODE_PB_REV,			// Stable PLAYBACK in reverse direction
 	TTR_KNWD_MODE_RC_FWD,			// Stable RECORD in forward direction
 	TTR_KNWD_MODE_RC_REV,			// Stable RECORD in reverse direction
-	TTR_KNWD_SUBMODE_TO_FWIND,		// Start transition to FAST WIND
-	TTR_KNWD_SUBMODE_WAIT_FWIND,	// Waiting for mechanism to transition to FAST WIND
 	TTR_KNWD_MODE_FW_FWD,			// Stable FAST WIND in forward direction, head/pinch in forward direction
 	TTR_KNWD_MODE_FW_REV,			// Stable FAST WIND in reverse direction, head/pinch in forward direction
 	TTR_KNWD_MODE_FW_FWD_HD_REV,	// Stable FAST WIND in forward direction, head/pinch in reverse direction

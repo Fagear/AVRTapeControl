@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2021-03-16
 
+Part of the [AVRTapeControl] project.
 Main module of tape transport controller.
 
 Main cycle, startup/power save/timing code.

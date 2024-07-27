@@ -23,6 +23,7 @@ The driver is targeted for real-time systems with no wait loops inside it.
 Buffer length is configurable via defines [UART_IN_LEN] and [UART_OUT_LEN].
 The driver can set UART speed on-the-fly, using [UART_BAUD_xxxx] defines in [UART_set_speed()] and [F_CPU] define for CPU clock (in Hz).
 
+Part of the [AVRTapeControl] project.
 Supported MCUs:	ATmega32, ATmega32A, ATmega168PA, ATmega328, ATmega328P.
 
 **************************************************************************************************************************************************************/

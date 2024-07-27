@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2016-09-26
 
+Part of the [AVRTapeControl] project.
 SPI driver for AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
 
 **************************************************************************************************************************************************************/

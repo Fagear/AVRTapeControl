@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2010-09-07
 
+Part of the [AVRTapeControl] project.
 CRC8 table-based calculation module for AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
 
 **************************************************************************************************************************************************************/

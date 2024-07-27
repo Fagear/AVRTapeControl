@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2023-09-07
 
+Part of the [AVRTapeControl] project.
 Strings for UART output to put into ROM of AVR MCUs.
 
 **************************************************************************************************************************************************************/

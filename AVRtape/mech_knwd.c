@@ -142,7 +142,119 @@ void mech_knwd_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode)
 		// Move target to STOP mode.
 		u8_knwd_target_mode = TTR_KNWD_MODE_STOP;
 	}
-	// TODO
+	else if(u8_knwd_target_mode==TTR_KNWD_MODE_STOP)
+	{
+		// Target mode: full STOP.
+		if((u8_knwd_mode==TTR_KNWD_MODE_PB_FWD)||
+			(u8_knwd_mode==TTR_KNWD_MODE_PB_REV)||
+			(u8_knwd_mode==TTR_KNWD_MODE_RC_FWD)||
+			(u8_knwd_mode==TTR_KNWD_MODE_RC_REV))
+		{
+			// From playback/record there only way is to fast wind, need to get through that.
+			u8_knwd_trans_timer = TIM_KNWD_DLY_FWIND_WAIT;
+			u8_knwd_mode = TTR_KNWD_SUBMODE_TO_FWIND;
+		}
+		else if((u8_knwd_mode==TTR_KNWD_MODE_FW_FWD)||
+				(u8_knwd_mode==TTR_KNWD_MODE_FW_REV)||
+				(u8_knwd_mode==TTR_KNWD_MODE_FW_FWD_HD_REV)||
+				(u8_knwd_mode==TTR_KNWD_MODE_FW_REV_HD_REV))
+		{
+			// Next from fast wind is STOP.
+			u8_knwd_trans_timer = TIM_KNWD_DLY_STOP;
+			u8_knwd_mode = TTR_KNWD_SUBMODE_TO_STOP;
+		}
+		else
+		{
+			// TTR is in unknown state.
+			mech_knwd_set_error(TTR_ERR_LOGIC_FAULT);
+		}
+	}
+	else if(u8_knwd_target_mode==TTR_KNWD_MODE_HALT)
+	{
+		// Target mode: full stop in HALT.
+		u8_knwd_mode = TTR_KNWD_MODE_HALT;
+	}
+	else
+	{
+		// TODO
+		// Check new target mode.
+		if((u8_knwd_target_mode==TTR_KNWD_MODE_PB_FWD)||
+			(u8_knwd_target_mode==TTR_KNWD_MODE_RC_FWD)||
+			(u8_knwd_target_mode==TTR_KNWD_MODE_PB_REV)||
+			(u8_knwd_target_mode==TTR_KNWD_MODE_RC_REV))
+		{
+			// Target mode: PLAYBACK/RECORD.
+			if(u8_knwd_mode==TTR_KNWD_MODE_STOP)
+			{
+				// Playback/record can be selected only from STOP.
+				u8_knwd_trans_timer = TIM_KNWD_DLY_PB_WAIT;
+				u8_knwd_mode = TTR_KNWD_SUBMODE_TO_PLAY;
+			}
+			else if((u8_knwd_mode==TTR_KNWD_MODE_FW_FWD)||
+					(u8_knwd_mode==TTR_KNWD_MODE_FW_REV)||
+					(u8_knwd_mode==TTR_KNWD_MODE_FW_FWD_HD_REV)||
+					(u8_knwd_mode==TTR_KNWD_MODE_FW_REV_HD_REV))
+			{
+				// From fast wind the mode has to become STOP at first.
+				u8_knwd_trans_timer = TIM_KNWD_DLY_STOP;
+				u8_knwd_mode = TTR_KNWD_SUBMODE_TO_STOP;
+			}
+			else
+			{
+				// TTR is in unknown state.
+				mech_knwd_set_error(TTR_ERR_LOGIC_FAULT);
+			}
+		}
+		else if((u8_knwd_target_mode==TTR_KNWD_MODE_FW_FWD)||
+				(u8_knwd_target_mode==TTR_KNWD_MODE_FW_REV)||
+				(u8_knwd_target_mode==TTR_KNWD_MODE_FW_FWD_HD_REV)||
+				(u8_knwd_target_mode==TTR_KNWD_MODE_FW_REV_HD_REV))
+		{
+			// Target mode: FAST WIND.
+		}
+		if((u8_knwd_target_mode>=TTR_KNWD_MODE_PB_FWD)&&(u8_knwd_target_mode<=TTR_KNWD_MODE_FW_REV_HD_REV))
+		{
+			// Check if target mode is allowed.
+			if(u8_knwd_target_mode==TTR_KNWD_MODE_RC_FWD)
+			{
+				if((in_sws&TTR_SW_NOREC_FWD)!=0)
+				{
+					// Record in forward direction is inhibited.
+#ifdef UART_TERM
+					UART_add_flash_string((uint8_t *)cch_no_record);
+#endif /* UART_TERM */
+					// Convert RECORD to PLAYBACK.
+					u8_knwd_target_mode = TTR_KNWD_MODE_PB_FWD;
+				}
+			}
+			else if(u8_knwd_target_mode==TTR_KNWD_MODE_RC_REV)
+			{
+				if((in_sws&TTR_SW_NOREC_REV)!=0)
+				{
+					// Record in forward direction is inhibited.
+#ifdef UART_TERM
+					UART_add_flash_string((uint8_t *)cch_no_record);
+#endif /* UART_TERM */
+					// Convert RECORD to PLAYBACK.
+					u8_knwd_target_mode = TTR_KNWD_MODE_PB_REV;
+				}
+			}
+			// Start transition to active mode.
+			u8_knwd_trans_timer = TIM_KNWD_DLY_ACTIVE;
+			u8_knwd_mode = TTR_KNWD_SUBMODE_TO_ACTIVE;
+		}
+		else
+		{
+			// Unknown mode, reset to STOP.
+#ifdef UART_TERM
+			UART_add_flash_string((uint8_t *)cch_unknown_mode);
+#endif /* UART_TERM */
+			u8_knwd_target_mode = TTR_KNWD_MODE_STOP;
+			(*usr_mode) = USR_MODE_STOP;
+		}
+		// Reset last error.
+		u8_knwd_error = TTR_ERR_NONE;
+	}
 }
 
 //-------------------------------------- Take in user desired mode and set new target mode.

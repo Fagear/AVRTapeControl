@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2023-09-07
 
+Part of the [AVRTapeControl] project.
 State machine for CRP42602Y tape transport (TTR) mechanism from AliExpress. Looks like some mechanisms used in LG tape machines.
 Belt-driven, one motor (for capstan, take-up and mode switching), one solenoid (for mode switching).
 This mechanism has two capstans and supports reverse operations.

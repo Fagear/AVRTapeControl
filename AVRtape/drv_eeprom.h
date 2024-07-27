@@ -29,6 +29,7 @@ There are two variants of interrupt-sensitive functions: ones with "_intfree" mu
 other functions will deal with interrupts themselves.
 It is NOT RECOMMENDED to use any of the functions of this driver in an interrupt routines.
 
+Part of the [AVRTapeControl] project.
 Supported MCUs:	ATmega32(A), ATmega88(A/PA), ATmega168(A/PA), ATmega328(P).
 
 **************************************************************************************************************************************************************/

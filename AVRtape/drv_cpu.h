@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2009-04-03
 
+Part of the [AVRTapeControl] project.
 CPU-related defines: CPU clock and assembler snippets for interrupt handling.
 For AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
 

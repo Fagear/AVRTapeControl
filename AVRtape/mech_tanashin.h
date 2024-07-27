@@ -17,6 +17,7 @@ limitations under the License.
 
 Created: 2023-09-07
 
+Part of the [AVRTapeControl] project.
 State machine for typical Tanashin TN-21ZLG clone tape transport (TTR) mechanism with logical/software control.
 Belt-driven, one motor (for capstan, take-up and mode switching), one solenoid (for mode switching).
 This mechanism does not support reverse operations.
@@ -58,12 +59,12 @@ enum
 	TTR_TANA_MODE_STOP,				// Stable STOP state
 	TTR_TANA_SUBMODE_TO_PLAY,		// Start transition to PLAYBACK/RECORD
 	TTR_TANA_SUBMODE_WAIT_PLAY,		// Waiting for mechanism to transition to PLAYBACK/RECORD
-	TTR_TANA_MODE_PB_FWD,			// Stable PLAYBACK in forward direction
-	TTR_TANA_MODE_RC_FWD,			// Stable RECORD in forward direction
 	TTR_TANA_SUBMODE_TO_FWIND,		// Start transition to FAST WIND
 	TTR_TANA_SUBMODE_WAIT_FWIND,	// Waiting for mechanism to transition to FAST WIND
 	TTR_TANA_SUBMODE_TO_SKIP_FW,	// Start transition to FAST WIND to skip it straight to STOP
 	TTR_TANA_SUBMODE_WAIT_SKIP,		// Waiting for FAST WIND skipping
+	TTR_TANA_MODE_PB_FWD,			// Stable PLAYBACK in forward direction
+	TTR_TANA_MODE_RC_FWD,			// Stable RECORD in forward direction
 	TTR_TANA_MODE_FW_FWD,			// Stable FAST WIND in forward direction
 	TTR_TANA_MODE_FW_REV,			// Stable FAST WIND in reverse direction
 	TTR_TANA_SUBMODE_TO_HALT,		// Start transition to HALT
