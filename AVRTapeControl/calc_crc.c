@@ -1,4 +1,4 @@
-#include "calc_CRC.h"
+﻿#include "calc_CRC.h"
 
 #ifdef CRC8_ROM_DATA
 static const uint8_t lut_crc8[256] PROGMEM = {

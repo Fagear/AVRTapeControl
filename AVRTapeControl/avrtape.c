@@ -1,4 +1,4 @@
-#include "avrtape.h"
+﻿#include "avrtape.h"
 
 volatile uint8_t u8i_interrupts=0;			// Deferred interrupts call flags (non-buffered)
 uint16_t u16i_last_adc_data=0;				// ADC data at last interrupt

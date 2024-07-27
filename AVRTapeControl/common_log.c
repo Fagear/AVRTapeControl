@@ -1,4 +1,4 @@
-#include "common_log.h"
+﻿#include "common_log.h"
 
 //-------------------------------------- Print user mode alias.
 void UART_dump_user_mode(uint8_t in_mode)

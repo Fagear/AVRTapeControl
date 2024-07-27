@@ -1,4 +1,4 @@
-#include "mech_crp42602y.h"
+﻿#include "mech_crp42602y.h"
 
 uint8_t u8_crp42602y_target_mode=TTR_42602_MODE_TO_INIT;// Target transport mode (derived from [usr_mode])
 uint8_t u8_crp42602y_mode=TTR_42602_MODE_STOP;      	// Current tape transport mode (transitions to [u8_crp42602y_target_mode])

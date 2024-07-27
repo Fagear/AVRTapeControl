@@ -1,4 +1,4 @@
-#include "mech_tanashin.h"
+﻿#include "mech_tanashin.h"
 
 uint8_t u8_tanashin_target_mode=TTR_TANA_MODE_TO_INIT;	// Target transport mode (derived from [usr_mode])
 uint8_t u8_tanashin_mode=TTR_TANA_MODE_STOP;			// Current tape transport mode (transitions to [u8_tanashin_target_mode])

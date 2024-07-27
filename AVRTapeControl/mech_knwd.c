@@ -1,4 +1,4 @@
-#include "mech_knwd.h"
+﻿#include "mech_knwd.h"
 
 uint8_t u8_knwd_target_mode=TTR_KNWD_MODE_TO_INIT;	// Target transport mode (derived from [usr_mode])
 uint8_t u8_knwd_mode=TTR_KNWD_MODE_STOP;      		// Current tape transport mode (transitions to [u8_knwd_target_mode])
