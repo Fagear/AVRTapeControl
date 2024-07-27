@@ -12,9 +12,9 @@
     <OutputFileName>$(MSBuildProjectName)</OutputFileName>
     <OutputFileExtension>.elf</OutputFileExtension>
     <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
-    <AssemblyName>AVRtape</AssemblyName>
-    <Name>AVRtape</Name>
-    <RootNamespace>AVRtape</RootNamespace>
+    <AssemblyName>AVRTapeControl</AssemblyName>
+    <Name>AVRTapeControl</Name>
+    <RootNamespace>AVRTapeControl</RootNamespace>
     <ToolchainFlavour>Native</ToolchainFlavour>
     <KeepTimersRunning>true</KeepTimersRunning>
     <OverrideVtor>false</OverrideVtor>

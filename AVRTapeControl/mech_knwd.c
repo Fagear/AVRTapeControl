@@ -241,7 +241,7 @@ void mech_knwd_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode)
 			}
 			// Start transition to active mode.
 			u8_knwd_trans_timer = TIM_KNWD_DLY_ACTIVE;
-			u8_knwd_mode = TTR_KNWD_SUBMODE_TO_ACTIVE;
+			//u8_knwd_mode = TTR_KNWD_SUBMODE_TO_ACTIVE;
 		}
 		else
 		{
