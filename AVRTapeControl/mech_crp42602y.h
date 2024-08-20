@@ -42,9 +42,9 @@ Also this mechanism has takeup tachometer sensor on drive pulley and it pulses i
 
 // Maximum wait for next tacho tick for various modes, contained in [u8_tacho_timer].
 // Each tick = 20 ms real time.
-#define TACHO_42602_STOP_DLY_MAX	12		// 240 ms (~4 Hz)
-#define TACHO_42602_PLAY_DLY_MAX	50		// 1000 ms (~1 Hz)
-#define TACHO_42602_FWIND_DLY_MAX	10		// 120 ms (~8 Hz)
+#define TACHO_42602_STOP_DLY_MAX	12		// 240 ms (3.7 Hz)
+#define TACHO_42602_PLAY_DLY_MAX	50		// 1000 ms (1.1...2.6 Hz)
+#define TACHO_42602_FWIND_DLY_MAX	10		// 120 ms (19.5...21 Hz)
 
 // States of CRP42602Y mechanism for [u8_crp42602y_target_mode] and [u8_crp42602y_mode] (including "SUBMODES").
 enum
