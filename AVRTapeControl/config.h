@@ -27,8 +27,8 @@ Defines/switches for configuring compile-time options.
 #define CONFIG_H_
 
 // Transport support.
-#define SUPP_CRP42602Y_MECH			// CRP42602Y mechanism from AliExpress (LG-like)
-//#define SUPP_TANASHIN_MECH			// Tanashin-clone
+//#define SUPP_CRP42602Y_MECH			// CRP42602Y mechanism from AliExpress (LG-like)
+#define SUPP_TANASHIN_MECH			// Tanashin-clone
 //#define SUPP_KENWOOD_MECH			// Kenwood mechanism
 
 // Stats saving into EEPROM
