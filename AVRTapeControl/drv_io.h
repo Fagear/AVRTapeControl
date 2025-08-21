@@ -26,6 +26,7 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define DRV_IO_H_
 
 #include <avr/io.h>
+#include "config.h"
 #include "drv_spi.h"
 
 #ifdef UART_TERM

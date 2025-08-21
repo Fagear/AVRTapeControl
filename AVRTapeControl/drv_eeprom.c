@@ -139,11 +139,11 @@ void EEPROM_read_byte(const uint16_t *u16_addr, uint8_t offset, uint8_t *u8_data
 uint8_t EEPROM_calc_CRC(void)
 {
 	uint8_t read_data, CRC_data;
-	#ifdef EEP_16BIT_ADDR
+#ifdef EEP_16BIT_ADDR
 	uint16_t cycle;
-	#else
+#else
 	uint8_t cycle;
-	#endif
+#endif
 	// Init CRC.
 	CRC_data=CRC8_init();
 	// Cycle through all data (except last byte).
@@ -174,11 +174,11 @@ uint8_t EEPROM_search_data(uint8_t *data, uint8_t start, uint8_t end)
 #endif	/*EEP_16BIT_ADDR*/
 {
 	uint8_t u8_answer, u8_data_found;
-	#ifdef EEP_16BIT_ADDR
+#ifdef EEP_16BIT_ADDR
 	uint16_t cycle, data_index;
-	#else
+#else
 	uint8_t cycle, data_index;
-	#endif
+#endif
 	uint16_t u16_offset;
 	// Reset to default address.
 	u16_current_address=0x0;
@@ -234,11 +234,11 @@ void EEPROM_read_segment(uint8_t *data, uint16_t offset, uint16_t count)
 void EEPROM_read_segment(uint8_t *data, uint8_t offset, uint8_t count)
 #endif	/*EEP_16BIT_ADDR*/
 {
-	#ifdef EEP_16BIT_ADDR
+#ifdef EEP_16BIT_ADDR
 	uint16_t cycle;
-	#else
+#else
 	uint8_t cycle;
-	#endif
+#endif
 	if((offset+count)>EEPROM_STORE_SIZE) return;
 	for(cycle=0;cycle<count;cycle++)
 	{
@@ -257,14 +257,14 @@ void EEPROM_write_segment(uint8_t *data, uint16_t offset, uint16_t count)
 void EEPROM_write_segment(uint8_t *data, uint8_t offset, uint8_t count)
 #endif	/*EEP_16BIT_ADDR*/
 {
-	#ifdef EEP_16BIT_ADDR
+#ifdef EEP_16BIT_ADDR
 	uint16_t cycle;
-	#else
+#else
 	uint8_t cycle;
-	#endif	/*EEP_16BIT_ADDR*/
+#endif	/*EEP_16BIT_ADDR*/
 	uint8_t tmp_data;
 	if((offset+count)>EEPROM_STORE_SIZE) return;
-	#ifndef EEP_NO_ERASE
+#ifndef EEP_NO_ERASE
 	for(cycle=0;cycle<count;cycle++)
 	{
 		// Read current byte (trying do decide, do we need to update it at all).
@@ -286,7 +286,7 @@ void EEPROM_write_segment(uint8_t *data, uint8_t offset, uint8_t count)
 			}
 		}		
 	}
-	#else
+#else
 	for(cycle=0;cycle<count;cycle++)
 	{
 		// Read current byte (trying do decide, do we need to update it at all).
@@ -298,13 +298,13 @@ void EEPROM_write_segment(uint8_t *data, uint8_t offset, uint8_t count)
 			EEPROM_write_byte(&u16_current_address, offset+cycle, data[cycle]);
 		}
 	}
-	#endif	/*EEP_NO_ERASE*/
+#endif	/*EEP_NO_ERASE*/
 	// Re-calculate CRC of all stored data.
 	cycle=EEPROM_calc_CRC();
-	#ifndef EEP_NO_ERASE
+#ifndef EEP_NO_ERASE
 	// Erase CRC.
 	EEPROM_erase_byte(&u16_current_address, EEPROM_CRC_POSITION);
-	#endif	/*EEP_NO_ERASE*/
+#endif	/*EEP_NO_ERASE*/
 	// Rewrite CRC.
 	EEPROM_write_byte(&u16_current_address, EEPROM_CRC_POSITION, cycle);
 }
@@ -320,14 +320,14 @@ void EEPROM_write_segment_intfree(uint8_t *data, uint16_t offset, uint16_t count
 void EEPROM_write_segment_intfree(uint8_t *data, uint8_t offset, uint8_t count)
 #endif	/*EEP_16BIT_ADDR*/
 {
-	#ifdef EEP_16BIT_ADDR
+#ifdef EEP_16BIT_ADDR
 	uint16_t cycle;
-	#else
+#else
 	uint8_t cycle;
-	#endif	/*EEP_16BIT_ADDR*/
+#endif	/*EEP_16BIT_ADDR*/
 	uint8_t tmp_data;
 	if((offset+count)>EEPROM_STORE_SIZE) return;
-	#ifndef EEP_NO_ERASE
+#ifndef EEP_NO_ERASE
 	for(cycle=0;cycle<count;cycle++)
 	{
 		// Read current byte (trying do decide, do we need to update it at all).
@@ -349,7 +349,7 @@ void EEPROM_write_segment_intfree(uint8_t *data, uint8_t offset, uint8_t count)
 			}
 		}
 	}
-	#else
+#else
 	for(cycle=0;cycle<count;cycle++)
 	{
 		// Read current byte (trying do decide, do we need to update it at all).
@@ -361,13 +361,13 @@ void EEPROM_write_segment_intfree(uint8_t *data, uint8_t offset, uint8_t count)
 			EEPROM_write_byte_intfree(&u16_current_address, offset+cycle, data[cycle]);
 		}
 	}
-	#endif	/*EEP_NO_ERASE*/
+#endif	/*EEP_NO_ERASE*/
 	// Re-calculate CRC of all stored data.
 	cycle=EEPROM_calc_CRC();
-	#ifndef EEP_NO_ERASE
+#ifndef EEP_NO_ERASE
 	// Erase CRC.
 	EEPROM_erase_byte_intfree(&u16_current_address, EEPROM_CRC_POSITION);
-	#endif	/*EEP_NO_ERASE*/
+#endif	/*EEP_NO_ERASE*/
 	// Rewrite CRC.
 	EEPROM_write_byte_intfree(&u16_current_address, EEPROM_CRC_POSITION, cycle);
 }
@@ -378,11 +378,11 @@ void EEPROM_write_segment_intfree(uint8_t *data, uint8_t offset, uint8_t count)
 void EEPROM_goto_next_segment(void)
 {
 	uint16_t temp_addr;
-	#ifdef EEP_16BIT_ADDR
+#ifdef EEP_16BIT_ADDR
 	uint16_t cycle;
-	#else
+#else
 	uint8_t cycle;
-	#endif
+#endif
 	uint8_t read_data, tmp_data;
 	// Check current EEPROM position.
 	temp_addr=EEPROM_ROM_SIZE-u16_current_address;
@@ -410,7 +410,7 @@ void EEPROM_goto_next_segment(void)
 		cli();
 		// Read data from EEPROM at old address.
 		EEPROM_read_byte(&u16_current_address, cycle, &read_data);
-		#ifndef EEP_NO_ERASE
+#ifndef EEP_NO_ERASE
 		// Read target byte (trying do decide, do we need to rewrite it at all).
 		EEPROM_read_byte(&temp_addr, cycle, &tmp_data);
 		if(tmp_data!=read_data)
@@ -428,7 +428,7 @@ void EEPROM_goto_next_segment(void)
 				EEPROM_write_byte_intfree(&temp_addr, cycle, read_data);
 			}
 		}
-		#else
+#else
 		// Read target byte (trying do decide, do we need to rewrite it at all).
 		EEPROM_read_byte(&temp_addr, cycle, &tmp_data);
 		if(tmp_data!=read_data)
@@ -436,7 +436,7 @@ void EEPROM_goto_next_segment(void)
 			// Write data into EEPROM at new location.
 			EEPROM_write_byte_intfree(&temp_addr, cycle, read_data);
 		}
-		#endif	/*EEP_NO_ERASE*/
+#endif	/*EEP_NO_ERASE*/
 		sei();
 	}
 	// Second step: erase all data at the old address.
@@ -448,13 +448,13 @@ void EEPROM_goto_next_segment(void)
 		EEPROM_read_byte(&u16_current_address, cycle, &tmp_data);
 		if(tmp_data!=EEPROM_ERASED_DATA)
 		{
-			#ifndef EEP_NO_ERASE
+#ifndef EEP_NO_ERASE
 			// Erase data at old location.
 			EEPROM_erase_byte_intfree(&u16_current_address, cycle);
-			#else
+#else
 			// Rewrite data at old location with "0xFF".
 			EEPROM_write_byte_intfree(&u16_current_address, cycle, EEPROM_ERASED_DATA);
-			#endif	/*EEP_NO_ERASE*/
+#endif	/*EEP_NO_ERASE*/
 		}
 		sei();
 	}

@@ -11,7 +11,6 @@ uint8_t u8_50hz_cnt=0;						// Divider for 50 Hz
 uint8_t u8_10hz_cnt=0;						// Divider for 10 Hz
 uint8_t u8_2hz_cnt=0;						// Divider for 2 Hz
 uint8_t u8_stest_timer=0;					// Delay for self-test indication.
-uint8_t u8_mech_type=TTR_TYPE_CRP42602Y;	// Selected type of mechanism
 uint8_t u8_transition_timer=0;				// Solenoid holding timer
 uint8_t u8_tacho_timer=0;					// Time from last tachometer signal
 uint8_t u8_sleep_inh_timer=0;				// Time before next sleep is allowed
@@ -20,16 +19,17 @@ uint8_t u8_user_mode=USR_MODE_STOP;			// User-requested mode
 uint8_t u8_mech_mode=USR_MODE_STOP;			// Current user-level transport mode
 uint8_t u8_last_play_dir=PB_DIR_FWD;		// Last playback direction
 uint8_t u8_transport_error=TTR_ERR_NONE;	// Last transport error
-uint16_t u16_features=TTR_REV_DEFAULT;		// Feature settings
 
+uint8_t u8a_settings[SETTINGS_SIZE];		// Transport features
 uint8_t u8a_spi_buf[SPI_IDX_MAX];			// Data to send via SPI bus
+
 
 #ifdef UART_TERM
 char u8a_buf[48];							// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 // Firmware description strings.
-volatile const uint8_t ucaf_version[] PROGMEM = "v0.13";			// Firmware version
+volatile const uint8_t ucaf_version[] PROGMEM = "v0.14";			// Firmware version
 volatile const uint8_t ucaf_compile_time[] PROGMEM = __TIME__;		// Time of compilation
 volatile const uint8_t ucaf_compile_date[] PROGMEM = __DATE__;		// Date of compilation
 volatile const uint8_t ucaf_info[] PROGMEM = "ATmega tape transport controller";			// Firmware description
@@ -169,6 +169,59 @@ inline void system_startup(void)
 	WDT_PREP_ON;
 	WDT_SW_ON;
 	wdt_reset();
+}
+
+//-------------------------------------- Read configuration data from EEPROM.
+inline void read_settings(void)
+{
+#ifdef UART_TERM
+	UART_add_flash_string(cch_eeprom_settings); UART_dump_out();
+#endif /* UART_TERM */
+	if(EEPROM_search_data(u8a_settings, 0, SETTINGS_SIZE)==EEPROM_NO_DATA)
+	{
+		// No settings found in EEPROM (empty EEPROM or corrupted data).
+#ifdef UART_TERM
+		UART_add_flash_string(cch_eeprom_err); UART_dump_out();
+#endif /* UART_TERM */
+		// Rewrite default settings into EEPROM.
+		EEPROM_write_segment(u8a_settings, 0, SETTINGS_SIZE);
+		// Re-read settings (ensure that all variables in EEPROM driver are set correctly).
+		if(EEPROM_search_data(u8a_settings, 0, SETTINGS_SIZE)==EEPROM_NO_DATA)
+		{
+			// Nearly impossible situation.
+			// Hardware fault: maybe EEPROM cycles are gone, it can not store any data.
+#ifdef UART_TERM
+			UART_add_flash_string(cch_eeprom_fail); UART_dump_out();
+#endif /* UART_TERM */
+			// Try to switch to next (probably working) segment of EEEPROM.
+			EEPROM_goto_next_segment();
+			// Rewrite new settings into EEPROM.
+			EEPROM_write_segment(u8a_settings, 0, SETTINGS_SIZE);
+			// Hang waiting for watchdog reset.
+			while(1) {};
+		}
+	}
+#ifdef UART_TERM
+	UART_add_flash_string(cch_eeprom_load);
+	UART_add_flash_string(cch_endl);
+	UART_dump_out();
+#endif /* UART_TERM */
+}
+
+//-------------------------------------- Save configuration data to EEPROM.
+inline void save_settings(void)
+{
+#ifdef UART_TERM
+	UART_add_flash_string(cch_eeprom_settings); UART_dump_out();
+#endif /* UART_TERM */
+	// Rewrite new settings into EEPROM.
+	EEPROM_write_segment(u8a_settings, 0, SETTINGS_SIZE);
+	// EEPROM wear leveling: jump to the next segment in EEPROM.
+	EEPROM_goto_next_segment();
+#ifdef UART_TERM
+	UART_add_flash_string(cch_eeprom_save);
+	UART_add_flash_string(cch_endl);
+#endif /* UART_TERM */
 }
 
 //-------------------------------------- Slow events dividers.
@@ -438,7 +491,7 @@ inline void keys_simple_scan(void)
 void scan_pb_buttons(void)
 {
 	// Set "single playback button" state.
-	u16_features &= ~TTR_FEA_TWO_PLAYS;
+	u8a_settings[EPS_SRV_FTRS] &= ~SRV_FEA_TWO_PLAYS;
 	// Let pin stabilize.
 	_delay_us(10);
 	// Pull both buttons up as inputs.
@@ -454,7 +507,7 @@ void scan_pb_buttons(void)
 		{
 			// REVERSE PLAY is at "1".
 			// If buttons are in different state that implies that there are two separate inputs.
-			u16_features |= TTR_FEA_TWO_PLAYS;
+			u8a_settings[EPS_SRV_FTRS] |= SRV_FEA_TWO_PLAYS;
 		}
 		/*else
 		{
@@ -470,7 +523,7 @@ void scan_pb_buttons(void)
 		{
 			// REVERSE PLAY is at "0".
 			// If buttons are in different state that implies that there are two separate inputs.
-			u16_features |= TTR_FEA_TWO_PLAYS;
+			u8a_settings[EPS_SRV_FTRS] |= SRV_FEA_TWO_PLAYS;
 		}
 		else
 		{
@@ -486,7 +539,7 @@ void scan_pb_buttons(void)
 				// REVERSE PLAY stayed at "1".
 				// REVERSE PLAY as input doesn't follow state of PLAY pin set as output,
 				// implying that those pins are separate, requesting double play button operation.
-				u16_features |= TTR_FEA_TWO_PLAYS;
+				u8a_settings[EPS_SRV_FTRS] |= SRV_FEA_TWO_PLAYS;
 			}
 		}
 	}
@@ -598,7 +651,7 @@ inline void update_indicators(void)
 			u8a_spi_buf[SPI_IDX_IND] &= ~IND_STOP;
 		}
 		// Playback forward indicator/playback indicator.
-		if((u16_features&TTR_FEA_TWO_PLAYS)==0)
+		if((u8a_settings[EPS_SRV_FTRS]&SRV_FEA_TWO_PLAYS)==0)
 		{
 			// Single playback button (clicking toggles direction) and Playback LED.
 			// Playback indicator.
@@ -726,7 +779,7 @@ inline void selftest_indicators(void)
 	{
 		u8a_spi_buf[SPI_IDX_IND] |= IND_REC;
 	}
-	if((u16_features&TTR_FEA_REV_ENABLE)!=0)
+	if((u8a_settings[EPS_TTR_FTRS]&TTR_FEA_REV_ENABLE)!=0)
 	{
 		if((sw_state&TTR_SW_NOREC_REV)==0)
 		{
@@ -773,9 +826,15 @@ void process_user(void)
 	// Save mode.
 	last_user_mode = u8_user_mode;
 #endif /* UART_TERM */
-	// Always clear RECORD events.
-	kbd_pressed&=~USR_BTN_RECORD;
-	// Button priority: from lowest to highest.
+	// Allow recording starting only from STOP.
+	if(u8_user_mode!=USR_MODE_STOP)
+	{
+		// Clear RECORD commands if not in STOP.
+		kbd_pressed&=~USR_BTN_RECORD;
+		kbd_state&=~USR_BTN_RECORD;
+	}
+	// Note: if user requests recording but inhibit switch is active - do nothing.
+	// Button priority: from lowest to highest (rew - ff - rec - pb - stop).
 	if((kbd_pressed&USR_BTN_REWIND)!=0)
 	{
 		kbd_pressed&=~USR_BTN_REWIND;
@@ -789,23 +848,56 @@ void process_user(void)
 		u8_user_mode = USR_MODE_FWIND_FWD;
 	}
 	// Check reverse settings.
-	if((u16_features&TTR_FEA_REV_ENABLE)==0)
+	if((u8a_settings[EPS_TTR_FTRS]&TTR_FEA_REV_ENABLE)==0)
 	{
 		// Reverse operations are disabled.
-		if((kbd_pressed&USR_BTN_PLAY)!=0)
+		// Check one-button record feature.
+		if((u8a_settings[SRV_FEA_ONE2REC]&TTR_FEA_REV_ENABLE)==0)
 		{
-			kbd_pressed&=~USR_BTN_PLAY;
-			// Check if RECORD button is held.
-			if(((kbd_state&USR_BTN_RECORD)==0)||((sw_state&TTR_SW_NOREC_FWD)!=0))
+			// One-button recording is disabled (REC+PLAY to record).
+			// Always clear RECORD events.
+			kbd_pressed&=~USR_BTN_RECORD;
+			// Check PLAY button.
+			if((kbd_pressed&USR_BTN_PLAY)!=0)
 			{
-				// Record button is not held or REC INHIBIT in forward direction is active.
+				// PLAY was pressed.
+				kbd_pressed&=~USR_BTN_PLAY;
+				// Check if RECORD button is held.
+				if((kbd_state&USR_BTN_RECORD)==0)
+				{
+					// Record button is not held.
+					// Start/resume playback in forward direction.
+					u8_user_mode = USR_MODE_PLAY_FWD;
+				}
+				else if((sw_state&TTR_SW_NOREC_FWD)==0)
+				{
+					// REC INHIBIT in forward direction is NOT active.
+					// Start/resume recording in forward direction.
+					u8_user_mode = USR_MODE_REC_FWD;
+				}
+			}
+		}
+		else
+		{
+			// One-button recording is enabled.
+			if((kbd_pressed&USR_BTN_RECORD)!=0)
+			{
+				// RECORD was pressed.
+				kbd_pressed&=~USR_BTN_RECORD;
+				// Check record inhibit switch.
+				if((sw_state&TTR_SW_NOREC_FWD)==0)
+				{
+					// REC INHIBIT in forward direction is inactive.
+					// Start/resume recording in forward direction.
+					u8_user_mode = USR_MODE_REC_FWD;
+				}
+			}
+			if((kbd_pressed&USR_BTN_PLAY)!=0)
+			{
+				// PLAY was pressed.
+				kbd_pressed&=~USR_BTN_PLAY;
 				// Start/resume playback in forward direction.
 				u8_user_mode = USR_MODE_PLAY_FWD;
-			}
-			else
-			{
-				// Start/resume recording in forward direction.
-				u8_user_mode = USR_MODE_REC_FWD;
 			}
 		}
 		// Always clear second playback button flag.
@@ -813,17 +905,117 @@ void process_user(void)
 	}
 	else
 	{
+		// Reverse operations are enabled.
 		// Check how many playback buttons are available.
-		if((u16_features&TTR_FEA_TWO_PLAYS)==0)
+		if((u8a_settings[EPS_SRV_FTRS]&SRV_FEA_TWO_PLAYS)==0)
 		{
 			// Single playback button (clicking toggles direction).
-			if((kbd_pressed&USR_BTN_PLAY)!=0)
+			// Check one-button record feature.
+			if((u8a_settings[SRV_FEA_ONE2REC]&TTR_FEA_REV_ENABLE)==0)
 			{
-				kbd_pressed&=~USR_BTN_PLAY;
-				// Check record button state.
-				if((kbd_state&USR_BTN_RECORD)==0)
+				// One-button recording is disabled (REC+PLAY to record).
+				// Always clear RECORD events.
+				kbd_pressed&=~USR_BTN_RECORD;
+				// Check PLAY button.
+				if((kbd_pressed&USR_BTN_PLAY)!=0)
 				{
-					// Record is NOT requested.
+					// PLAY was pressed.
+					kbd_pressed&=~USR_BTN_PLAY;
+					// Check REC button state.
+					if((kbd_state&USR_BTN_RECORD)==0)
+					{
+						// Record is NOT requested.
+						// Check if current mode is playback already and check current direction.
+						if(u8_user_mode==USR_MODE_PLAY_FWD)
+						{
+							// Swap tape side.
+							u8_user_mode = USR_MODE_PLAY_REV;
+						}
+						else if(u8_user_mode==USR_MODE_PLAY_REV)
+						{
+							// Swap tape side.
+							u8_user_mode = USR_MODE_PLAY_FWD;
+						}
+						else
+						{
+							// Record is NOT requested or TTR is not in PLAY.
+							// Check last playback direction.
+							if(u8_last_play_dir==PB_DIR_FWD)
+							{
+								// Start/resume playback in forward direction.
+								u8_user_mode = USR_MODE_PLAY_FWD;
+							}
+							else
+							{
+								// Start/resume playback in reverse direction.
+								u8_user_mode = USR_MODE_PLAY_REV;
+							}
+						}
+					}
+					else
+					{
+						// Record IS requested.
+						// Previous checks must ensure that TTR is in STOP.
+						// Check last playback direction.
+						if(u8_last_play_dir==PB_DIR_FWD)
+						{
+							// Check record inhibit switch for forward direction.
+							if((sw_state&TTR_SW_NOREC_FWD)==0)
+							{
+								// Recording in forward is allowed.
+								// Start/resume recording in forward direction.
+								u8_user_mode = USR_MODE_REC_FWD;
+							}
+						}
+						else
+						{
+							// Check record inhibit switch for reverse direction.
+							if((sw_state&TTR_SW_NOREC_REV)==0)
+							{
+								// Recording in reverse is allowed.
+								// Start/resume recording in reverse direction.
+								u8_user_mode = USR_MODE_REC_REV;
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				// One-button recording is enabled.
+				// Check RECORD button.
+				if((kbd_pressed&USR_BTN_RECORD)!=0)
+				{
+					// RECORD was pressed.
+					kbd_pressed&=~USR_BTN_RECORD;
+					// Previous checks must ensure that TTR is in STOP.
+					// Check last playback direction.
+					if(u8_last_play_dir==PB_DIR_FWD)
+					{
+						// Check record inhibit switch for forward direction.
+						if((sw_state&TTR_SW_NOREC_FWD)==0)
+						{
+							// Recording in forward is allowed.
+							// Start/resume playback in forward direction.
+							u8_user_mode = USR_MODE_PLAY_FWD;
+						}
+					}
+					else
+					{
+						// Check record inhibit switch for reverse direction.
+						if((sw_state&TTR_SW_NOREC_REV)==0)
+						{
+							// Recording in reverse is allowed.
+							// Start/resume playback in reverse direction.
+							u8_user_mode = USR_MODE_PLAY_REV;
+						}
+					}
+				}
+				// Check PLAY button.
+				if((kbd_pressed&USR_BTN_PLAY)!=0)
+				{
+					// PLAY was pressed.
+					kbd_pressed&=~USR_BTN_PLAY;
 					// Check if current mode is playback already and check current direction.
 					if(u8_user_mode==USR_MODE_PLAY_FWD)
 					{
@@ -851,58 +1043,6 @@ void process_user(void)
 						}
 					}
 				}
-				else
-				{
-					// Record is requested.
-					// Check if recording already in progress.
-					if(u8_user_mode==USR_MODE_REC_FWD)
-					{
-						// Already recording (in forward).
-						// Check reverse write protect switch.
-						if((sw_state&TTR_SW_NOREC_REV)==0)
-						{
-							// Recording in reverse is allowed.
-							// Swap tape side.
-							u8_user_mode = USR_MODE_REC_REV;
-						}
-					}
-					else if(u8_user_mode==USR_MODE_REC_REV)
-					{
-						// Already recording (in reverse).
-						// Check forward write protect switch.
-						if((sw_state&TTR_SW_NOREC_FWD)==0)
-						{
-							// Recording in forward is allowed.
-							// Swap tape side.
-							u8_user_mode = USR_MODE_REC_FWD;
-						}
-					}
-					else if(u8_user_mode==USR_MODE_STOP)
-					{
-						// TTR in STOP (allow starting recording only from STOP for erasure protection).
-						// Check last playback direction.
-						if(u8_last_play_dir==PB_DIR_FWD)
-						{
-							// Check record inhibit switch for forward direction.
-							if((sw_state&TTR_SW_NOREC_FWD)==0)
-							{
-								// Recording in forward is allowed.
-								// Start/resume recording in forward direction.
-								u8_user_mode = USR_MODE_REC_FWD;
-							}
-						}
-						else
-						{
-							// Check record inhibit switch for reverse direction.
-							if((sw_state&TTR_SW_NOREC_REV)==0)
-							{
-								// Recording in reverse is allowed.
-								// Start/resume recording in reverse direction.
-								u8_user_mode = USR_MODE_REC_REV;
-							}
-						}
-					}
-				}
 			}
 			// Always clear second playback button flag.
 			kbd_pressed&=~USR_BTN_PLAY_REV;
@@ -910,9 +1050,86 @@ void process_user(void)
 		else
 		{
 			// Two playback buttons (for each direction).
-			if((kbd_state&USR_BTN_RECORD)==0)
+			// Check one-button record feature.
+			if((u8a_settings[SRV_FEA_ONE2REC]&TTR_FEA_REV_ENABLE)==0)
 			{
-				// Record is not requested.
+				// One-button recording is disabled (REC+PLAY to record).
+				if((kbd_state&USR_BTN_RECORD)==0)
+				{
+					// Record is NOT requested.
+					if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
+					{
+						kbd_pressed&=~USR_BTN_PLAY_REV;
+						// Start/resume playback in reverse direction (less priority).
+						u8_user_mode = USR_MODE_PLAY_REV;
+					}
+					if((kbd_pressed&USR_BTN_PLAY)!=0)
+					{
+						kbd_pressed&=~USR_BTN_PLAY;
+						// Start/resume playback in forward direction (more priority).
+						u8_user_mode = USR_MODE_PLAY_FWD;
+					}
+				}
+				else
+				{
+					// Record IS requested.
+					if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
+					{
+						kbd_pressed&=~USR_BTN_PLAY_REV;
+						// Previous checks must ensure that TTR is in STOP.
+						// Check record inhibit switch for reverse direction.
+						if((sw_state&TTR_SW_NOREC_REV)==0)
+						{
+							// Recording in reverse is allowed.
+							// Start/resume recording in reverse direction (less priority).
+							u8_user_mode = USR_MODE_REC_REV;
+						}
+					}
+					if((kbd_pressed&USR_BTN_PLAY)!=0)
+					{
+						kbd_pressed&=~USR_BTN_PLAY;
+						// Previous checks must ensure that TTR is in STOP.
+						// Check record inhibit switch for forward direction.
+						if((sw_state&TTR_SW_NOREC_FWD)==0)
+						{
+							// Recording in forward is allowed.
+							// Start/resume recording in forward direction (more priority).
+							u8_user_mode = USR_MODE_REC_FWD;
+						}
+					}
+				}
+			}
+			else
+			{
+				// One-button recording is enabled.
+				// Check RECORD button.
+				if((kbd_pressed&USR_BTN_RECORD)!=0)
+				{
+					// RECORD was pressed.
+					kbd_pressed&=~USR_BTN_RECORD;
+					// Previous checks must ensure that TTR is in STOP.
+					// Check last playback direction.
+					if(u8_last_play_dir==PB_DIR_FWD)
+					{
+						// Check record inhibit switch for forward direction.
+						if((sw_state&TTR_SW_NOREC_FWD)==0)
+						{
+							// Recording in forward is allowed.
+							// Start/resume playback in forward direction.
+							u8_user_mode = USR_MODE_PLAY_FWD;
+						}
+					}
+					else
+					{
+						// Check record inhibit switch for reverse direction.
+						if((sw_state&TTR_SW_NOREC_REV)==0)
+						{
+							// Recording in reverse is allowed.
+							// Start/resume playback in reverse direction.
+							u8_user_mode = USR_MODE_PLAY_REV;
+						}
+					}
+				}
 				if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
 				{
 					kbd_pressed&=~USR_BTN_PLAY_REV;
@@ -924,40 +1141,6 @@ void process_user(void)
 					kbd_pressed&=~USR_BTN_PLAY;
 					// Start/resume playback in forward direction (more priority).
 					u8_user_mode = USR_MODE_PLAY_FWD;
-				}
-			}
-			else
-			{
-				// Record is requested.
-				if((kbd_pressed&USR_BTN_PLAY_REV)!=0)
-				{
-					kbd_pressed&=~USR_BTN_PLAY_REV;
-					// Check if TTR is in STOP or RECORD forward.
-					if((u8_user_mode==USR_MODE_STOP)||(u8_user_mode==USR_MODE_REC_FWD))
-					{ 
-						// Check record inhibit switch for reverse direction.
-						if((sw_state&TTR_SW_NOREC_REV)==0)
-						{
-							// Recording is allowed.
-							// Start/resume recording in reverse direction (less priority).
-							u8_user_mode = USR_MODE_REC_REV;
-						}
-					}
-				}
-				if((kbd_pressed&USR_BTN_PLAY)!=0)
-				{
-					kbd_pressed&=~USR_BTN_PLAY;
-					// Check if TTR is in STOP or RECORD reverse.
-					if((u8_user_mode==USR_MODE_STOP)||(u8_user_mode==USR_MODE_REC_REV))
-					{
-						// Check record inhibit switch for forward direction.
-						if((sw_state&TTR_SW_NOREC_FWD)==0)
-						{
-							// Recording is allowed.
-							// Start/resume recording in forward direction (more priority).
-							u8_user_mode = USR_MODE_REC_FWD;
-						}
-					}
 				}
 			}
 		}
@@ -979,6 +1162,70 @@ void process_user(void)
 #endif /* UART_TERM */
 }
 
+//-------------------------------------- Print feature set.
+void UART_dump_settings(uint8_t in_ttr_settings, uint8_t in_srv_settings)
+{
+	#ifdef UART_TERM
+	if((in_ttr_settings&TTR_FEA_STOP_TACHO)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_tacho_stop); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_tacho_stop); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	if((in_ttr_settings&TTR_FEA_REV_ENABLE)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_reverse); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_reverse); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	
+	if((in_srv_settings&SRV_FEA_TWO_PLAYS)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_pb_btns); UART_add_flash_string((uint8_t *)cch_two);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_pb_btns); UART_add_flash_string((uint8_t *)cch_one);
+	}
+	if((in_srv_settings&SRV_FEA_PB_AUTOREV)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_ab); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_ab); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	if((in_srv_settings&SRV_FEA_PB_LOOP)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_loop); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_loop); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	if((in_srv_settings&SRV_FEA_PBF2REW)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_pb_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_pb_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	if((in_srv_settings&SRV_FEA_FF2REW)!=0)
+	{
+		UART_add_flash_string((uint8_t *)cch_set_fw_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
+	}
+	else
+	{
+		UART_add_flash_string((uint8_t *)cch_set_fw_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
+	}
+	#endif /* UART_TERM */
+}
+
 //-------------------------------------- Main function.
 int main(void)
 {
@@ -992,22 +1239,37 @@ int main(void)
 
 	// Preload startup tests.
 	u8_tasks |= (TASK_SCAN_PB_BTNS|TASK_SCAN_STEST);
-			
+	
 	// Default mech.
-#ifdef SUPP_CRP42602Y_MECH
-	u8_mech_type = TTR_TYPE_CRP42602Y;
-#endif /* SUPP_CRP42602Y_MECH */
+	// (listed in reverse order of priority, the latest overrides)
 #ifdef SUPP_KENWOOD_MECH
-	u8_mech_type = TTR_TYPE_KENWOOD;
+	u8a_settings[EPS_TTR_TYPE] = TTR_TYPE_KENWOOD;
 #endif /* SUPP_KENWOOD_MECH */
+#ifdef SUPP_CRP42602Y_MECH
+	u8a_settings[EPS_TTR_TYPE] = TTR_TYPE_CRP42602Y;
+#endif /* SUPP_CRP42602Y_MECH */
 #ifdef SUPP_TANASHIN_MECH
-	u8_mech_type = TTR_TYPE_TANASHIN;
-	u16_features &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE|TTR_FEA_PB_AUTOREV|TTR_FEA_PB_LOOP|TTR_FEA_TWO_PLAYS);	// Disable functions for non-reverse mech.
-	// This transport does not have reverse record inhibit switch,
-	// using this pin as power supply for tacho sensor.
-	TANA_TACHO_PWR_SETUP;
-	TANA_TACHO_PWR_EN;
+	u8a_settings[EPS_TTR_TYPE] = TTR_TYPE_TANASHIN;
 #endif /* SUPP_TANASHIN_MECH */
+	// Default transport features.
+	u8a_settings[EPS_TTR_FTRS] = TTR_FEA_DEFAULT;
+	// Default service features.
+	u8a_settings[EPS_SRV_FTRS] = SRV_FEA_DEFAULT;
+
+	// Read feature settings from EEPROM.
+	read_settings();
+
+	// Reconfigure features for selected tape transport.
+	if(u8a_settings[EPS_TTR_TYPE] == TTR_TYPE_TANASHIN)
+	{
+		// Disable functions for non-reverse mech.
+		u8a_settings[EPS_TTR_FTRS] &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE);	
+		u8a_settings[EPS_SRV_FTRS] &= ~(SRV_FEA_TWO_PLAYS|SRV_FEA_PB_AUTOREV|SRV_FEA_PB_LOOP);
+		// This transport does not have reverse record inhibit switch,
+		// using this pin as power supply for tacho sensor.
+		TANA_TACHO_PWR_SETUP;
+		TANA_TACHO_PWR_EN;
+	}
 
 	// Init modes to selected transport.
 	u8_user_mode = USR_MODE_STOP;
@@ -1017,25 +1279,25 @@ int main(void)
 	UART_add_flash_string((uint8_t *)ucaf_author); UART_add_flash_string((uint8_t *)cch_endl); UART_dump_out();
 	UART_add_flash_string((uint8_t *)ucaf_info); UART_add_flash_string((uint8_t *)cch_endl);
 	UART_add_flash_string((uint8_t *)ucaf_version); UART_add_string(" ["); UART_add_flash_string((uint8_t *)ucaf_compile_date); UART_add_string(", "); UART_add_flash_string((uint8_t *)ucaf_compile_time); UART_add_string("]"); UART_add_flash_string((uint8_t *)cch_endl);
+#ifdef SUPP_TANASHIN_MECH
+	if(u8a_settings[EPS_TTR_TYPE]==TTR_TYPE_TANASHIN)
+	{
+		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_tanashin_mech); UART_add_flash_string((uint8_t *)cch_endl);
+	}
+#endif /* SUPP_TANASHIN_MECH */
 #ifdef SUPP_CRP42602Y_MECH
-	if(u8_mech_type==TTR_TYPE_CRP42602Y)
+	if(u8a_settings[EPS_TTR_TYPE]==TTR_TYPE_CRP42602Y)
 	{
 		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_crp42602y_mech); UART_add_flash_string((uint8_t *)cch_endl);
 	}
 #endif /* SUPP_CRP42602Y_MECH */
 #ifdef SUPP_KENWOOD_MECH
-	if(u8_mech_type==TTR_TYPE_KENWOOD)
+	if(u8a_settings[EPS_TTR_TYPE]==TTR_TYPE_KENWOOD)
 	{
 		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_knwd_mech); UART_add_flash_string((uint8_t *)cch_endl);
 	}
 #endif /* SUPP_KENWOOD_MECH */
-#ifdef SUPP_TANASHIN_MECH
-	if(u8_mech_type==TTR_TYPE_TANASHIN)
-	{
-		UART_add_flash_string((uint8_t *)cch_tape_transport); UART_add_flash_string((uint8_t *)ucaf_tanashin_mech); UART_add_flash_string((uint8_t *)cch_endl);
-	}
-#endif /* SUPP_TANASHIN_MECH */
-	UART_add_flash_string((uint8_t *)cch_endl); UART_dump_settings(u16_features); UART_add_flash_string((uint8_t *)cch_endl);
+	UART_add_flash_string((uint8_t *)cch_endl); UART_dump_settings(u8a_settings[EPS_TTR_FTRS], u8a_settings[EPS_SRV_FTRS]); UART_add_flash_string((uint8_t *)cch_endl);
 	UART_dump_out();
 #endif /* UART_TERM */
 
@@ -1145,35 +1407,35 @@ int main(void)
 				if((u8_tasks&TASK_SCAN_STEST)==0)
 				{
 					// Update transport state machine and solenoid action.
-					if(u8_mech_type==TTR_TYPE_CRP42602Y)
+					if(u8a_settings[EPS_TTR_TYPE]==TTR_TYPE_TANASHIN)
+					{
+#ifdef SUPP_TANASHIN_MECH
+						// Processing for Tanashin-clone mechanism.
+						mech_tanashin_state_machine(u8a_settings[EPS_TTR_FTRS], u8a_settings[EPS_SRV_FTRS], sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+						u8_mech_mode = mech_tanashin_get_mode();
+						u8_transition_timer = mech_tanashin_get_transition();
+						u8_transport_error = mech_tanashin_get_error();
+#endif /* SUPP_TANASHIN_MECH */
+					}
+					else  if(u8a_settings[EPS_TTR_TYPE]==TTR_TYPE_CRP42602Y)
 					{
 #ifdef SUPP_CRP42602Y_MECH
 						// Processing for CRP42602Y mechanism.
-						mech_crp42602y_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+						mech_crp42602y_state_machine(u8a_settings[EPS_TTR_FTRS], u8a_settings[EPS_SRV_FTRS], sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
 						u8_mech_mode = mech_crp42602y_get_mode();
 						u8_transition_timer = mech_crp42602y_get_transition();
 						u8_transport_error = mech_crp42602y_get_error();
 #endif /* SUPP_CRP42602Y_MECH */
 					}
-					else if(u8_mech_type==TTR_TYPE_KENWOOD)
+					else if(u8a_settings[EPS_TTR_TYPE]==TTR_TYPE_KENWOOD)
 					{
 #ifdef SUPP_KENWOOD_MECH
 						// Processing for Kenwood mechanism.
-						mech_knwd_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
+						mech_knwd_state_machine(u8a_settings[EPS_TTR_FTRS], u8a_settings[EPS_SRV_FTRS], sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
 						u8_mech_mode = mech_knwd_get_mode();
 						u8_transition_timer = mech_knwd_get_transition();
 						u8_transport_error = mech_knwd_get_error();
 #endif /* SUPP_KENWOOD_MECH */
-					}
-					else if(u8_mech_type==TTR_TYPE_TANASHIN)
-					{
-#ifdef SUPP_TANASHIN_MECH
-						// Processing for Tanashin-clone mechanism.
-						mech_tanashin_state_machine(u16_features, sw_state, &u8_tacho_timer, &u8_user_mode, &u8_last_play_dir);
-						u8_mech_mode = mech_tanashin_get_mode();
-						u8_transition_timer = mech_tanashin_get_transition();
-						u8_transport_error = mech_tanashin_get_error();
-#endif /* SUPP_TANASHIN_MECH */
 					}
 				}
 #ifdef UART_TERM

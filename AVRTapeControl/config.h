@@ -26,14 +26,18 @@ Defines/switches for configuring compile-time options.
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#include "common_log.h"
+
 // Transport support.
-//#define SUPP_CRP42602Y_MECH			// CRP42602Y mechanism from AliExpress (LG-like)
 #define SUPP_TANASHIN_MECH			// Tanashin-clone
-//#define SUPP_KENWOOD_MECH			// Kenwood mechanism
+#define SUPP_CRP42602Y_MECH			// CRP42602Y mechanism from AliExpress (LG-like)
+#define SUPP_KENWOOD_MECH			// Kenwood mechanism
 
 // Stats saving into EEPROM
 #define CRC8_ROM_DATA				// Put CRC table into ROM instead of RAM.
 #define SETTINGS_SIZE		11		// Number of bytes for full [settings_data] union
+// Set target size of saving/restoring block for EEPROM driver.
+#define EEPROM_TARGET_SIZE	SETTINGS_SIZE
 //#define EN_STAT_EEPROM
 
 // UART console stuff.
@@ -42,7 +46,8 @@ Defines/switches for configuring compile-time options.
 #define UART_SPEED			UART_BAUD_125k
 //#define UART_TERM					// Enable UART debug output (slows down execution and takes up ROM and RAM).
 
-// Set target size of saving/restoring block for EEPROM driver.
-#define EEPROM_TARGET_SIZE	SETTINGS_SIZE
+// Default feature sets (described in [common_log.h]).
+#define TTR_FEA_DEFAULT				(TTR_FEA_REV_ENABLE)	// Default transport feature settings
+#define SRV_FEA_DEFAULT				(SRV_FEA_TWO_PLAYS|SRV_FEA_PB_AUTOREV|SRV_FEA_FF2REW)		// Default service feature settings
 
 #endif /* CONFIG_H_ */

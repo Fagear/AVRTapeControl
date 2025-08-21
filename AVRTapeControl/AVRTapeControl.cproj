@@ -153,9 +153,9 @@
     <Compile Include="avrtape.h">
       <SubType>compile</SubType>
     </Compile>
-    <None Include="calc_crc.c">
+    <Compile Include="calc_crc.c">
       <SubType>compile</SubType>
-    </None>
+    </Compile>
     <None Include="calc_crc.h">
       <SubType>compile</SubType>
     </None>
@@ -171,9 +171,9 @@
     <Compile Include="drv_cpu.h">
       <SubType>compile</SubType>
     </Compile>
-    <None Include="drv_eeprom.c">
+    <Compile Include="drv_eeprom.c">
       <SubType>compile</SubType>
-    </None>
+    </Compile>
     <None Include="drv_eeprom.h">
       <SubType>compile</SubType>
     </None>

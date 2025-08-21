@@ -32,6 +32,11 @@ Strings for UART output to put into ROM of AVR MCUs.
 #ifdef UART_TERM
 
 extern const uint8_t cch_startup_1[];
+extern const uint8_t cch_eeprom_settings[];
+extern const uint8_t cch_eeprom_err[];
+extern const uint8_t cch_eeprom_load[];
+extern const uint8_t cch_eeprom_save[];
+extern const uint8_t cch_eeprom_fail[];
 extern const uint8_t cch_endl[];
 extern const uint8_t cch_arrow[];
 extern const uint8_t cch_neq[];

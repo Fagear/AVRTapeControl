@@ -1,4 +1,6 @@
 ﻿#include "common_log.h"
+#include "drv_io.h"
+#include "strings.h"
 
 //-------------------------------------- Print user mode alias.
 void UART_dump_user_mode(uint8_t in_mode)
@@ -39,65 +41,3 @@ void UART_dump_user_mode(uint8_t in_mode)
 #endif /* UART_TERM */
 }
 
-//-------------------------------------- Print feature set.
-void UART_dump_settings(uint16_t in_settings)
-{
-#ifdef UART_TERM
-	if((in_settings&TTR_FEA_REV_ENABLE)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_reverse); UART_add_flash_string((uint8_t *)cch_enabled);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_reverse); UART_add_flash_string((uint8_t *)cch_disabled);
-	}
-	if((in_settings&TTR_FEA_PB_AUTOREV)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_ab); UART_add_flash_string((uint8_t *)cch_enabled);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_ab); UART_add_flash_string((uint8_t *)cch_disabled);
-	}
-	if((in_settings&TTR_FEA_PB_LOOP)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_loop); UART_add_flash_string((uint8_t *)cch_enabled);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_auto_reverse_loop); UART_add_flash_string((uint8_t *)cch_disabled);
-	}
-	if((in_settings&TTR_FEA_PBF2REW)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_pb_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_pb_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
-	}
-	if((in_settings&TTR_FEA_FF2REW)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_fw_auto_rewind); UART_add_flash_string((uint8_t *)cch_enabled);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_fw_auto_rewind); UART_add_flash_string((uint8_t *)cch_disabled);
-	}
-	if((in_settings&TTR_FEA_STOP_TACHO)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_tacho_stop); UART_add_flash_string((uint8_t *)cch_enabled);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_tacho_stop); UART_add_flash_string((uint8_t *)cch_disabled);
-	}
-	if((in_settings&TTR_FEA_TWO_PLAYS)!=0)
-	{
-		UART_add_flash_string((uint8_t *)cch_set_pb_btns); UART_add_flash_string((uint8_t *)cch_two);
-	}
-	else
-	{
-		UART_add_flash_string((uint8_t *)cch_set_pb_btns); UART_add_flash_string((uint8_t *)cch_one);
-	}
-#endif /* UART_TERM */
-}

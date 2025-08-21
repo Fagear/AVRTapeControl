@@ -3,6 +3,11 @@
 #ifdef UART_TERM
 
 const uint8_t cch_startup_1[] PROGMEM = "\n\r\n\rFirmware OK\n\r";
+const uint8_t cch_eeprom_settings[] PROGMEM = "Settings: ";
+const uint8_t cch_eeprom_err[] PROGMEM = "defaults ";
+const uint8_t cch_eeprom_load[] PROGMEM = "loaded.";
+const uint8_t cch_eeprom_save[] PROGMEM = "saved.";
+const uint8_t cch_eeprom_fail[] PROGMEM = "EEPROM: dead!";
 const uint8_t cch_endl[] PROGMEM = "\n\r";
 const uint8_t cch_arrow[] PROGMEM = "->";
 const uint8_t cch_neq[] PROGMEM = "!=";

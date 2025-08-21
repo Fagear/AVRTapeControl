@@ -25,7 +25,8 @@ Also this mechanism has takeup tachometer sensor on drive pulley and it pulses i
 
 **************************************************************************************************************************************************************/
 
-#include "common_log.h"
+#include "drv_io.h"
+#include "strings.h"
 
 // Timer marks for various modes for CRP42602Y mechanism, contained in [u8_crp42602y_trans_timer].
 // Each tick = 2 ms real time.
@@ -83,9 +84,9 @@ uint8_t mech_crp42602y_user_to_transport(uint8_t in_mode, uint8_t *play_dir);		/
 void mech_crp42602y_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
 void mech_crp42602y_target2mode(uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);	// Start transition from current mode to target mode
 void mech_crp42602y_user2target(uint8_t *usr_mode, uint8_t *play_dir);	// Take in user desired mode and set new target mode
-void mech_crp42602y_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Control mechanism in static mode (not transitioning between modes)
+void mech_crp42602y_static_mode(uint8_t in_ttr_features, uint8_t in_srv_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Control mechanism in static mode (not transitioning between modes)
 void mech_crp42602y_cyclogram(uint8_t in_sws, uint8_t *play_dir);		// Transition through modes, timing solenoid
-void mech_crp42602y_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine
+void mech_crp42602y_state_machine(uint8_t in_ttr_features, uint8_t in_srv_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine
 uint8_t mech_crp42602y_get_mode();										// Get user-level mode of the transport
 uint8_t mech_crp42602y_get_transition();								// Get transition timer count
 uint8_t mech_crp42602y_get_error();										// Get transport error

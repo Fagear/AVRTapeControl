@@ -38,12 +38,12 @@ Processes switches reading, user input (buttons) reading, mode indication, timin
 #include "common_log.h"
 #include "drv_eeprom.h"
 #include "drv_io.h"
-#ifdef SUPP_CRP42602Y_MECH
-#include "mech_crp42602y.h"
-#endif /* SUPP_CRP42602Y_MECH */
 #ifdef SUPP_TANASHIN_MECH
 #include "mech_tanashin.h"
 #endif /* SUPP_TANASHIN_MECH */
+#ifdef SUPP_CRP42602Y_MECH
+#include "mech_crp42602y.h"
+#endif /* SUPP_CRP42602Y_MECH */
 #ifdef SUPP_KENWOOD_MECH
 #include "mech_knwd.h"
 #endif /* SUPP_KENWOOD_MECH */
@@ -65,8 +65,56 @@ Processes switches reading, user input (buttons) reading, mode indication, timin
 #define	TASK_SCAN_PB_BTNS	(1<<6)	// Start-up scan for number of playback buttons
 #define	TASK_SCAN_STEST		(1<<7)	// Start-up scan for self-test mode
 
-uint16_t audio_centering(uint16_t in_audio, uint16_t in_center);
-void ADC_read_result(void);
-void audio_input_calibrate(void);
+// Flags for [kbd_state], [kbd_pressed] and [kbd_released].
+#define USR_BTN_REWIND		(1<<0)	// Rewind button
+#define USR_BTN_PLAY_REV	(1<<1)	// Play in reverse button
+#define USR_BTN_STOP		(1<<2)	// Stop button
+#define USR_BTN_RECORD		(1<<3)	// Record button
+#define USR_BTN_PLAY		(1<<4)	// Play/reverse direction button
+#define USR_BTN_FFORWARD	(1<<5)	// Fast forward button
+
+// Indicators on the SPI 595 extender at [SPI_IDX_IND].
+#define IND_ERROR			(1<<0)	// Transport error indicator
+#define IND_TAPE			(1<<1)	// Tape presence indicator (cassette illumination?)
+#define IND_STOP			(1<<2)	// Stop indicator
+#define IND_REC				(1<<3)	// Record indicator
+#define IND_REWIND			(1<<4)	// Rewind indicator
+#define IND_PLAY_REV		(1<<5)	// Play in reverse direction indicator
+#define IND_PLAY_DIR		(1<<5)	// Playback direction indicator
+#define IND_PLAY			(1<<6)	// Playback indicator
+#define IND_PLAY_FWD		(1<<6)  // Play in forward direction indicator
+#define IND_FFORWARD		(1<<7)	// Fast forward indicator
+
+// Supported tape transports.
+enum
+{
+	TTR_TYPE_CRP42602Y,				// CRP42602Y mechanism from AliExpress
+	TTR_TYPE_KENWOOD,				// Kenwood mechanism
+	TTR_TYPE_TANASHIN,				// Tanashin TN-21ZLG clone mechanism from AliExpress
+};
+
+// Index of byte in SPI bus extenders for [u8a_spi_buf].
+enum
+{
+	SPI_IDX_IND,					// Regular transport mode indicators
+	SPI_IDX_MAX						// Index limit
+};
+
+// EEPROM settings offsets.
+enum
+{
+	EPS_MARKER,						// Start marker position
+	EPS_TTR_TYPE,					// Transport type (if several types are enabled on compile time)
+	EPS_TTR_FTRS,					// Transport features (tacho in stop, reverse enable, etc.)
+	EPS_SRV_FTRS,					// Service features (auto-reverse, auto-rewind, etc.)
+};
+
+#define SLEEP_INHIBIT_2HZ	6		// Time for sleep inhibition with 2HZ rate
+
+void scan_pb_buttons(void);
+void scan_selftest_buttons(void);
+void process_user(void);
+void UART_dump_settings(uint8_t in_ttr_settings, uint8_t in_srv_settings);
+int main(void);
 
 #endif /* AVRTAPE_H_ */

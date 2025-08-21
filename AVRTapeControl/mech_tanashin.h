@@ -24,7 +24,8 @@ This mechanism does not support reverse operations.
 
 **************************************************************************************************************************************************************/
 
-#include "common_log.h"
+#include "drv_io.h"
+#include "strings.h"
 
 // Timer marks for various modes for Tanashin mechanism, contained in [u8_tanashin_trans_timer].
 // Each tick = 2 ms real time.
@@ -79,9 +80,9 @@ uint8_t mech_tanashin_user_to_transport(uint8_t in_mode);				// Convert user mod
 void mech_tanashin_static_halt(uint8_t in_sws, uint8_t *usr_mode);		// Transport operations are halted, keep mechanism in this state
 void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode);		// Start transition from current mode to target mode
 void mech_tanashin_user2target(uint8_t *usr_mode);						// Take in user desired mode and set new target mode
-void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);						// Control mechanism in static mode (not transitioning between modes)
+void mech_tanashin_static_mode(uint8_t in_ttr_features, uint8_t in_srv_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode);						// Control mechanism in static mode (not transitioning between modes)
 void mech_tanashin_cyclogram(uint8_t in_sws);							// Transition through modes, timing solenoid
-void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine
+void mech_tanashin_state_machine(uint8_t in_ttr_features, uint8_t in_srv_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir);	// Perform tape transport state machine
 uint8_t mech_tanashin_get_mode();										// Get user-level mode of the transport
 uint8_t mech_tanashin_get_transition();									// Get transition timer count
 uint8_t mech_tanashin_get_error();										// Get transport error

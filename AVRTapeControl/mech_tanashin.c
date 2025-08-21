@@ -225,7 +225,7 @@ void mech_tanashin_user2target(uint8_t *usr_mode)
 }
 
 //-------------------------------------- Control mechanism in static mode (not transitioning between modes).
-void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode)
+void mech_tanashin_static_mode(uint8_t in_ttr_features, uint8_t in_srv_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode)
 {
 	if(u8_tanashin_mode==TTR_TANA_MODE_STOP)
 	{
@@ -271,7 +271,7 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
-			if((in_features&TTR_FEA_PBF2REW)!=0)
+			if((in_srv_features&SRV_FEA_PBF2REW)!=0)
 			{
 				// Currently: playback or recording in forward, auto-rewind is enabled.
 				// Next: rewind.
@@ -339,7 +339,7 @@ void mech_tanashin_static_mode(uint16_t in_features, uint8_t in_sws, uint8_t *ta
 			if(u8_tanashin_mode==TTR_TANA_MODE_FW_FWD)
 			{
 				// Fast wind was in forward direction.
-				if((in_features&TTR_FEA_FF2REW)!=0)
+				if((in_srv_features&SRV_FEA_FF2REW)!=0)
 				{
 					// Currently: fast wind in forward direction, auto-rewind is enabled.
 					// Next: rewind.
@@ -682,7 +682,7 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 }
 
 //-------------------------------------- Perform tape transport state machine.
-void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir)
+void mech_tanashin_state_machine(uint8_t in_ttr_features, uint8_t in_srv_features, uint8_t in_sws, uint8_t *tacho, uint8_t *usr_mode, uint8_t *play_dir)
 {
 	// Mode overflow protection.
 	if((u8_tanashin_mode>=TTR_TANA_MODE_MAX)||(u8_tanashin_target_mode>=TTR_TANA_MODE_MAX))
@@ -746,7 +746,7 @@ void mech_tanashin_state_machine(uint16_t in_features, uint8_t in_sws, uint8_t *
 		else
 		{
 			// Transport is not due to transition through modes (u8_tanashin_mode == u8_tanashin_target_mode).
-			mech_tanashin_static_mode(in_features, in_sws, tacho, usr_mode);
+			mech_tanashin_static_mode(in_ttr_features, in_srv_features, in_sws, tacho, usr_mode);
 		}
 		// Check for idle timeout.
 		if((in_sws&TTR_SW_TAPE_IN)==0)
