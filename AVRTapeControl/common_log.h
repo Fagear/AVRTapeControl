@@ -41,7 +41,7 @@ Common logic defines for tape transport processing and enabled features.
 #define IDLE_CAP_MAX				IDLE_CAP_TAPE_IN
 
 // Maximum number of tries to switch mode.
-#define MODE_REP_MAX				4
+#define MODE_REP_MAX				6
 
 // State of tape playback direction.
 enum
@@ -83,11 +83,11 @@ enum
 enum
 {
 	SRV_FEA_TWO_PLAYS	= (1<<0),	// Enable two PLAY buttons/LEDs (for each direction)
-	SRV_FEA_PB_AUTOREV	= (1<<1),	// Enable auto-reverse for forward playback (PB FWD -> PB REV -> STOP)
-	SRV_FEA_PB_LOOP		= (1<<2),	// Enable full auto-reverse (PB FWD -> PB REV -> PB FWD -> ...)
-	SRV_FEA_PBF2REW		= (1<<3),	// Enable auto-rewind for forward PLAY (PB FWD -> FW REV -> STOP) (lower priority than [SRV_FEA_PB_LOOP])
-	SRV_FEA_FF2REW		= (1<<4),	// Enable auto-rewind for fast forward (FW FWD -> FW REV -> STOP)
-	SRV_FEA_ONE2REC		= (1<<5),	// Enable one-button record start (no need to press any PLAY button)
+	SRV_FEA_ONE2REC		= (1<<1),	// Enable one-button record start (no need to press any PLAY button)
+	SRV_FEA_PB_AUTOREV	= (1<<2),	// Enable auto-reverse for forward playback (PB FWD -> PB REV -> STOP)
+	SRV_FEA_PB_LOOP		= (1<<3),	// Enable full auto-reverse (PB FWD -> PB REV -> PB FWD -> ...)
+	SRV_FEA_PBF2REW		= (1<<4),	// Enable auto-rewind for forward PLAY (PB FWD -> FW REV -> STOP) (lower priority than [SRV_FEA_PB_LOOP])
+	SRV_FEA_FF2REW		= (1<<5),	// Enable auto-rewind for fast forward (FW FWD -> FW REV -> STOP)
 };
 
 void UART_dump_user_mode(uint8_t in_mode);

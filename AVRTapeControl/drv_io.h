@@ -33,8 +33,6 @@ Hardware defines (pseudo-HAL) and setup routines.
 #include "drv_uart.h"
 #endif /* UART_TERM */
 
-//#define DBG_ACT_MON		// Output mode transition activity instead of "record" output.
-
 // User-input buttons.
 #define BTN_PORT_1			PORTC
 #define BTN_DIR_1			DDRC
@@ -147,7 +145,7 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define SYST_CONFIG2		OCR2A=124					// Cycle clock: INclk/(1+124), 1000 Hz cycle
 #define SYST_EN_INTR		TIMSK2|=(1<<OCIE2A)			// Enable interrupt
 #define SYST_DIS_INTR		TIMSK2&=~(1<<OCIE2A)		// Disable interrupt
-#define SYST_START			TCCR2B|=(1<<CS21)			// Start timer with clk/8 clock (125 kHz)
+#define SYST_START			TCCR2B|=(1<<CS22)			// Start timer with clk/64 clock (125 kHz)
 #define SYST_STOP			TCCR2B&=~((1<<CS20)|(1<<CS21)|(1<<CS22))	// Stop timer
 #define SYST_DATA_8			TCNT2						// Count register
 #define SYST_RESET			SYST_DATA_8=0				// Reset count
@@ -162,16 +160,25 @@ Hardware defines (pseudo-HAL) and setup routines.
 #define PWR_SPI_OFF			PRR|=(1<<PRSPI)
 #define PWR_UART_OFF		PRR|=(1<<PRUSART0)
 
+// Debug outputs in place of analog output controls.
 #ifdef DBG_ACT_MON
 	#undef REC_EN_ON
 	#undef REC_EN_OFF
-	#define	DBG_MODE_ACT_ON		REC_EN_PORT|=REC_EN_BIT
-	#define	DBG_MODE_ACT_OFF	REC_EN_PORT&=~REC_EN_BIT
+	#undef MUTE_EN_ON
+	#undef MUTE_EN_OFF
 	#define REC_EN_ON
 	#define REC_EN_OFF
+	#define MUTE_EN_ON
+	#define MUTE_EN_OFF
+	#define	DBG_MODE_ACT_ON		REC_EN_PORT|=REC_EN_BIT
+	#define	DBG_MODE_ACT_OFF	REC_EN_PORT&=~REC_EN_BIT
+	#define	DBG_MODE_SINC_ON	MUTE_EN_PORT|=MUTE_EN_BIT
+	#define	DBG_MODE_SINC_OFF	MUTE_EN_PORT&=~MUTE_EN_BIT
 #else
-	#define	DBG_MODE_ACT_ON
+	#define	DBG_MODE_ACT_ON	
 	#define	DBG_MODE_ACT_OFF
+	#define	DBG_MODE_SINC_ON
+	#define	DBG_MODE_SINC_OFF
 #endif
 
 //-------------------------------------- IO initialization.

@@ -26,7 +26,7 @@ For AVR MCUs and AtmelStudio/AVRStudio/WinAVR/avr-gcc compilers.
 #ifndef DRV_CPU_H_
 #define DRV_CPU_H_		1
 
-#define F_CPU		1000000UL 					// MCU core clock: 1 MHz (8 MHz/8)
+#define F_CPU		8000000UL 					// MCU core clock: 8 MHz (8 MHz/1)
 #define NOP			asm volatile("nop\n")		// Skip a clock.
 #define SLEEP		asm volatile("sleep\n")		// Enter sleep mode.
 

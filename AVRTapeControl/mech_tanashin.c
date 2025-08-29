@@ -8,11 +8,11 @@ uint16_t u16_tanashin_idle_time=0;						// Timer for disabling capstan motor
 uint8_t u8_tanashin_retries=0;							// Number of retries before transport halts
 
 #ifdef UART_TERM
-char u8a_tanashin_buf[24];								// Buffer for UART debug messages
+char u8a_tanashin_buf[36];								// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 #ifdef SUPP_TANASHIN_MECH
-volatile const uint8_t ucaf_tanashin_mech[] PROGMEM = "Tanashin-clone mechanism";
+volatile const uint8_t ucaf_tanashin_mech[] PROGMEM = "Tanashin TN-21ZLG clone mechanism (M60207052)";
 #endif /* SUPP_TANASHIN_MECH */
 
 //-------------------------------------- Freeze transport due to error.
@@ -166,10 +166,15 @@ void mech_tanashin_target2mode(uint8_t *tacho, uint8_t *usr_mode)
 				u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
 				u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 			}
-			else
+			else if(u8_tanashin_mode==TTR_TANA_MODE_PB_FWD)
 			{
-				// TTR is in unknown state.
-				mech_tanashin_set_error(TTR_ERR_LOGIC_FAULT);
+				// Reset to current (PLAYBACK) mode.
+				(*usr_mode) = USR_MODE_PLAY_FWD;
+			}
+			else if(u8_tanashin_mode==TTR_TANA_MODE_RC_FWD)
+			{
+				// Reset to current (RECORD) mode.
+				(*usr_mode) = USR_MODE_REC_FWD;
 			}
 		}
 		else if((u8_tanashin_target_mode==TTR_TANA_MODE_FW_FWD)||(u8_tanashin_target_mode==TTR_TANA_MODE_FW_REV))
@@ -247,7 +252,7 @@ void mech_tanashin_static_mode(uint8_t in_ttr_features, uint8_t in_srv_features,
 			UART_add_flash_string((uint8_t *)cch_stop_active); UART_add_flash_string((uint8_t *)cch_force_stop);
 #endif /* UART_TERM */
 			// Force STOP if transport is not in STOP.
-			u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;			// Load maximum delay to allow mechanism to revert to STOP (before retrying)
+			u8_tanashin_trans_timer = TIM_TANA_DLY_PB_WAIT;			// Load maximum delay to allow mechanism to revert to STOP (before retrying)
 			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;			// Set mode to trigger solenoid
 			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;			// Set target to be STOP
 		}
@@ -265,15 +270,11 @@ void mech_tanashin_static_mode(uint8_t in_ttr_features, uint8_t in_srv_features,
 			MUTE_EN_ON;
 			// Turn recording circuit off.
 			REC_EN_OFF;
-			// Perform auto-stop.
-			u8_tanashin_trans_timer = TIM_TANA_DLY_PB2STOP;
-			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_SKIP_FW;
-			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
 			// Clear user mode.
 			(*usr_mode) = USR_MODE_STOP;
-			if((in_srv_features&SRV_FEA_PBF2REW)!=0)
+			if(((in_srv_features&SRV_FEA_PBF2REW)!=0)&&(u8_tanashin_mode==TTR_TANA_MODE_PB_FWD))
 			{
-				// Currently: playback or recording in forward, auto-rewind is enabled.
+				// Currently: playback in forward, auto-rewind is enabled.
 				// Next: rewind.
 #ifdef UART_TERM
 				UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_rewind);
@@ -289,6 +290,10 @@ void mech_tanashin_static_mode(uint8_t in_ttr_features, uint8_t in_srv_features,
 				UART_add_flash_string((uint8_t *)cch_no_tacho_pb); UART_add_flash_string((uint8_t *)cch_auto_stop); UART_add_flash_string((uint8_t *)cch_endl);
 				// STOP mode already queued.
 			}
+			// Perform auto-stop.
+			u8_tanashin_trans_timer = TIM_TANA_DLY_PB2STOP;
+			u8_tanashin_mode = TTR_TANA_SUBMODE_TO_SKIP_FW;
+			u8_tanashin_target_mode = TTR_TANA_MODE_STOP;
 #endif /* UART_TERM */
 		}
 		else
@@ -460,7 +465,7 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 				else
 				{
 					// Repeat transition to STOP.
-					u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
+					u8_tanashin_trans_timer = TIM_TANA_DLY_PB_WAIT;
 					u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 				}
 			}
@@ -631,7 +636,7 @@ void mech_tanashin_cyclogram(uint8_t in_sws)
 				else
 				{
 					// Repeat transition to STOP.
-					u8_tanashin_trans_timer = TIM_TANA_DLY_STOP;
+					u8_tanashin_trans_timer = TIM_TANA_DLY_PB_WAIT;
 					u8_tanashin_mode = TTR_TANA_SUBMODE_TO_STOP;
 				}
 			}
@@ -809,10 +814,10 @@ void mech_tanashin_state_machine(uint8_t in_ttr_features, uint8_t in_srv_feature
 		DBG_MODE_ACT_ON;
 	}
 #ifdef UART_TERM
-	if((u8_tanashin_trans_timer>0)||(mech_tanashin_user_to_transport((*usr_mode))!=u8_tanashin_target_mode)||(u8_tanashin_target_mode!=u8_tanashin_mode))
+	if((u8_tanashin_trans_timer==1)||(mech_tanashin_user_to_transport((*usr_mode))!=u8_tanashin_target_mode)||(u8_tanashin_target_mode!=u8_tanashin_mode))
 	{
-		sprintf(u8a_tanashin_buf, "MODE|>%03u<|%01u>%01u>%01u|%02x\n\r",
-				u8_tanashin_trans_timer, (*usr_mode), u8_tanashin_target_mode, u8_tanashin_mode, in_sws);
+		sprintf(u8a_tanashin_buf, "MODE|>t%03u<|u%01u}%01u>%01u|0x%02x\n\r",
+				u8_tanashin_trans_timer, (*usr_mode), u8_tanashin_mode, u8_tanashin_target_mode, in_sws);
 		UART_add_string(u8a_tanashin_buf);
 	}
 #endif /* UART_TERM */

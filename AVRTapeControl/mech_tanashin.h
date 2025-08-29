@@ -43,7 +43,7 @@ This mechanism does not support reverse operations.
 // Maximum wait for next tacho tick for various modes, contained in [u8_tacho_timer].
 // Each tick = 20 ms real time.
 #define TACHO_TANA_PLAY_DLY_MAX		65		// 1300 ms (1...3 Hz)
-#define TACHO_TANA_FWIND_DLY_MAX	5		// 100 ms (13...56 Hz)
+#define TACHO_TANA_FWIND_DLY_MAX	10		// 200 ms (13...56 Hz)
 
 // Power for tachometer through absent reverse record inhibit switch pin.
 #define TANA_TACHO_PWR_SETUP		(SW_DIR|=SW_NOREC_REV)

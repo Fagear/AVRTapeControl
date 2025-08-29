@@ -21,6 +21,8 @@ void UART_set_speed(uint16_t set_speed)
 //-------------------------------------- UART initialization and start.
 void UART_enable(void)
 {
+	// Set TX as output.
+	DDRD |= (1<<1);
 	// Enable double speed (for more precise speed setting).
 	UART_CONF1_REG=UART_DBL_SPEED;
 	// Enable transmitter, interrupt on TX complete.

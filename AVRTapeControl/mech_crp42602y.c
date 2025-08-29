@@ -8,11 +8,11 @@ uint16_t u16_crp42602y_idle_time=0;						// Timer for disabling capstan motor
 uint8_t u8_crp42602y_retries=0;							// Number of retries before transport halts
 
 #ifdef UART_TERM
-char u8a_crp42602y_buf[4];								// Buffer for UART debug messages
+char u8a_crp42602y_buf[32];								// Buffer for UART debug messages
 #endif /* UART_TERM */
 
 #ifdef SUPP_CRP42602Y_MECH
-volatile const uint8_t ucaf_crp42602y_mech[] PROGMEM = "CRP42602Y mechanism";
+volatile const uint8_t ucaf_crp42602y_mech[] PROGMEM = "CRP42602Y mechanism (M02753900D)";
 #endif /* SUPP_CRP42602Y_MECH */
 
 //-------------------------------------- Freeze transport due to error.
@@ -1019,6 +1019,14 @@ void mech_crp42602y_state_machine(uint8_t in_ttr_features, uint8_t in_srv_featur
 	{
 		DBG_MODE_ACT_ON;
 	}
+#ifdef UART_TERM
+	if((u8_crp42602y_trans_timer==1)||(u8_crp42602y_target_mode!=u8_crp42602y_mode))
+	{
+		sprintf(u8a_crp42602y_buf, "MODE|>t%03u<|u%01u}%01u>%01u|0x%02x\n\r",
+				u8_crp42602y_trans_timer, (*usr_mode), u8_crp42602y_mode, u8_crp42602y_target_mode, in_sws);
+		UART_add_string(u8a_crp42602y_buf);
+	}
+#endif /* UART_TERM */
 }
 
 //-------------------------------------- Get user-level mode of the transport.
