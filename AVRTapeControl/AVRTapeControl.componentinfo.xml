@@ -79,7 +79,7 @@
 				<d4p1:string></d4p1:string>
 			</RteComponents>
 			<Status>Resolved</Status>
-			<VersionMode>Fixed</VersionMode>
+			<VersionMode>Latest</VersionMode>
 			<IsComponentInAtProject>true</IsComponentInAtProject>
 		</ProjectComponent>
 	</ProjectComponents>

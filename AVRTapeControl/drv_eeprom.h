@@ -115,6 +115,66 @@ Supported MCUs:	ATmega32(A), ATmega88(A/PA), ATmega168(A/PA), ATmega328(P).
 #define EEP_NO_ERASE	1
 #endif
 
+#if defined(__AVR_ATmega48__)	// ATmega48
+#define EEP_DATA_REG	EEDR
+#define EEP_ADDR_REG	EEAR
+#define WAIT_EEP_WR		while(EECR&(1<<EEPE))
+#define WAIT_SELF_WR	while(SPMCSR&(1<<SPMEN))
+#define EEP_SET_WR1		EECR&=~(1<<EEPM0)
+#define EEP_SET_WR2		EECR|=(1<<EEPM1)
+#define EEP_SET_ER1		EECR|=(1<<EEPM0)
+#define EEP_SET_ER2		EECR&=~(1<<EEPM1)
+#define EEP_PREP_WRITE	EECR|=(1<<EEMPE)|(0<<EEPE)
+#define EEP_START_WRITE	EECR|=(1<<EEPE)
+#define EEP_START_READ	EECR|=(1<<EERE)
+#undef EEP_NO_ERASE
+#endif
+
+#if defined(__AVR_ATmega48A__)	// ATmega48A
+#define EEP_DATA_REG	EEDR
+#define EEP_ADDR_REG	EEAR
+#define WAIT_EEP_WR		while(EECR&(1<<EEPE))
+#define WAIT_SELF_WR	while(SPMCSR&(1<<SPMEN))
+#define EEP_SET_WR1		EECR&=~(1<<EEPM0)
+#define EEP_SET_WR2		EECR|=(1<<EEPM1)
+#define EEP_SET_ER1		EECR|=(1<<EEPM0)
+#define EEP_SET_ER2		EECR&=~(1<<EEPM1)
+#define EEP_PREP_WRITE	EECR|=(1<<EEMPE)|(0<<EEPE)
+#define EEP_START_WRITE	EECR|=(1<<EEPE)
+#define EEP_START_READ	EECR|=(1<<EERE)
+#undef EEP_NO_ERASE
+#endif
+
+#if defined(__AVR_ATmega48P__)	// ATmega48P
+#define EEP_DATA_REG	EEDR
+#define EEP_ADDR_REG	_SFR_IO16(0x21)
+#define WAIT_EEP_WR		while(EECR&(1<<EEPE))
+#define WAIT_SELF_WR	while(SPMCSR&(1<<SPMEN))
+#define EEP_SET_WR1		EECR&=~(1<<EEPM0)
+#define EEP_SET_WR2		EECR|=(1<<EEPM1)
+#define EEP_SET_ER1		EECR|=(1<<EEPM0)
+#define EEP_SET_ER2		EECR&=~(1<<EEPM1)
+#define EEP_PREP_WRITE	EECR|=(1<<EEMPE)|(0<<EEPE)
+#define EEP_START_WRITE	EECR|=(1<<EEPE)
+#define EEP_START_READ	EECR|=(1<<EERE)
+#undef EEP_NO_ERASE
+#endif
+
+#if defined(__AVR_ATmega48PA__)	// ATmega48PA
+#define EEP_DATA_REG	EEDR
+#define EEP_ADDR_REG	_SFR_IO16(0x21)
+#define WAIT_EEP_WR		while(EECR&(1<<EEPE))
+#define WAIT_SELF_WR	while(SPMCSR&(1<<SPMEN))
+#define EEP_SET_WR1		EECR&=~(1<<EEPM0)
+#define EEP_SET_WR2		EECR|=(1<<EEPM1)
+#define EEP_SET_ER1		EECR|=(1<<EEPM0)
+#define EEP_SET_ER2		EECR&=~(1<<EEPM1)
+#define EEP_PREP_WRITE	EECR|=(1<<EEMPE)|(0<<EEPE)
+#define EEP_START_WRITE	EECR|=(1<<EEPE)
+#define EEP_START_READ	EECR|=(1<<EERE)
+#undef EEP_NO_ERASE
+#endif
+
 #if defined(__AVR_ATmega88__)	// ATmega88
 #define EEP_DATA_REG	EEDR
 #define EEP_ADDR_REG	EEAR
@@ -131,6 +191,21 @@ Supported MCUs:	ATmega32(A), ATmega88(A/PA), ATmega168(A/PA), ATmega328(P).
 #endif
 
 #if defined(__AVR_ATmega88A__)	// ATmega88A
+#define EEP_DATA_REG	EEDR
+#define EEP_ADDR_REG	EEAR
+#define WAIT_EEP_WR		while(EECR&(1<<EEPE))
+#define WAIT_SELF_WR	while(SPMCSR&(1<<SPMEN))
+#define EEP_SET_WR1		EECR&=~(1<<EEPM0)
+#define EEP_SET_WR2		EECR|=(1<<EEPM1)
+#define EEP_SET_ER1		EECR|=(1<<EEPM0)
+#define EEP_SET_ER2		EECR&=~(1<<EEPM1)
+#define EEP_PREP_WRITE	EECR|=(1<<EEMPE)|(0<<EEPE)
+#define EEP_START_WRITE	EECR|=(1<<EEPE)
+#define EEP_START_READ	EECR|=(1<<EERE)
+#undef EEP_NO_ERASE
+#endif
+
+#if defined(__AVR_ATmega88P__)	// ATmega88P
 #define EEP_DATA_REG	EEDR
 #define EEP_ADDR_REG	EEAR
 #define WAIT_EEP_WR		while(EECR&(1<<EEPE))
@@ -176,6 +251,21 @@ Supported MCUs:	ATmega32(A), ATmega88(A/PA), ATmega168(A/PA), ATmega328(P).
 #endif
 
 #if defined (__AVR_ATmega168A__) // ATmega168A
+#define EEP_DATA_REG	EEDR
+#define EEP_ADDR_REG	EEAR
+#define WAIT_EEP_WR		while(EECR&(1<<EEPE))
+#define WAIT_SELF_WR	while(SPMCSR&(1<<SPMEN))
+#define EEP_SET_WR1		EECR&=~(1<<EEPM0)
+#define EEP_SET_WR2		EECR|=(1<<EEPM1)
+#define EEP_SET_ER1		EECR|=(1<<EEPM0)
+#define EEP_SET_ER2		EECR&=~(1<<EEPM1)
+#define EEP_PREP_WRITE	EECR|=(1<<EEMPE)|(0<<EEPE)
+#define EEP_START_WRITE	EECR|=(1<<EEPE)
+#define EEP_START_READ	EECR|=(1<<EERE)
+#undef EEP_NO_ERASE
+#endif
+
+#if defined (__AVR_ATmega168P__) // ATmega168P
 #define EEP_DATA_REG	EEDR
 #define EEP_ADDR_REG	EEAR
 #define WAIT_EEP_WR		while(EECR&(1<<EEPE))

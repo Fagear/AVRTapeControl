@@ -1311,8 +1311,10 @@ int main(void)
 	// Default service features.
 	u8a_settings[EPS_SRV_FTRS] = SRV_FEA_DEFAULT;
 
+#ifdef USE_EEPROM
 	// Read feature settings from EEPROM.
-	//read_settings();
+	read_settings();
+#endif
 
 	if((u8_tasks&TASK_SCAN_PB_BTNS)!=0)
 	{
@@ -1327,7 +1329,7 @@ int main(void)
 		// Disable functions for non-reverse mech.
 		u8a_settings[EPS_TTR_FTRS] &= ~(TTR_FEA_STOP_TACHO|TTR_FEA_REV_ENABLE);	
 		u8a_settings[EPS_SRV_FTRS] &= ~(SRV_FEA_TWO_PLAYS|SRV_FEA_PB_AUTOREV|SRV_FEA_PB_LOOP);
-#ifdef TANA_TACHO_PWR_EN
+#ifdef SUPP_TANASHIN_MECH
 		// This transport does not have reverse record inhibit switch,
 		// using this pin as power supply for tacho sensor.
 		TANA_TACHO_PWR_SETUP;
@@ -1490,6 +1492,13 @@ int main(void)
 						u8_transition_timer = mech_knwd_get_transition();
 						u8_transport_error = mech_knwd_get_error();
 #endif /* SUPP_KENWOOD_MECH */
+					}
+					else
+					{
+						// Configured transport is not supported by firmware.
+						u8_mech_mode = USR_MODE_STOP;
+						u8_transition_timer = 0;
+						u8_transport_error = TTR_ERR_LOGIC_FAULT;
 					}
 				}
 #ifdef UART_TERM

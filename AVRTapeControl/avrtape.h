@@ -88,9 +88,10 @@ Processes switches reading, user input (buttons) reading, mode indication, timin
 // Supported tape transports.
 enum
 {
+	TTR_TYPE_TANASHIN,				// Tanashin TN-21ZLG clone mechanism from AliExpress
 	TTR_TYPE_CRP42602Y,				// CRP42602Y mechanism from AliExpress
 	TTR_TYPE_KENWOOD,				// Kenwood mechanism
-	TTR_TYPE_TANASHIN,				// Tanashin TN-21ZLG clone mechanism from AliExpress
+	TTR_TYPE_COUNT
 };
 
 // Index of byte in SPI bus extenders for [u8a_spi_buf].
