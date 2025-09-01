@@ -24,79 +24,77 @@ Desired mode is set through buttons (one per mode), MCU operates a solenoid that
 
 Sorry, no electrical schematics at the moment...
 
-MCU can be clocked from internal 8 MHz RC-oscillator but **external 8 MHz Xtal** is recommended for precise timing. Internally clock is divided by 8, so everything runs at **1 MHz**.
+MCU can be clocked from internal 8 MHz RC-oscillator but **external 8 MHz Xtal** is recommended for precise timing.
 
 <details>
 <summary>AVR fuses for ATmega328 with 8 MHz Xtal</summary>
 
-- **CKDIV8** = 0
 - **SUT1** = 0
 - **CKSEL3** = 0
 - **SPIEN** = 0
+- **EESAVE** = 0
 - **BODLEVEL1** = 0
 - **BODLEVEL0** = 0
 - all other at "1"
 
 In hex form:
-- low byte: **0x57**
-- high byte: **0xDF**
+- low byte: **0xD7**
+- high byte: **0xD7**
 - extended byte: **0xFC**
 </details>
 
 <details>
 <summary>AVR fuses for ATmega328 with internal RC generator</summary>
 
-- **CKDIV8** = 0
-- **SUT1** = 0
 - **SUT0** = 0
 - **CKSEL3** = 0
 - **CKSEL2** = 0
 - **CKSEL0** = 0
 - **SPIEN** = 0
+- **EESAVE** = 0
 - **BODLEVEL1** = 0
 - **BODLEVEL0** = 0
 - all other at "1"
 
 In hex form:
-- low byte: **0x42**
-- high byte: **0xDF**
+- low byte: **0xE2**
+- high byte: **0xD7**
 - extended byte: **0xFC**
 </details>
 
 <details>
 <summary>AVR fuses for ATmega48/ATmega88/ATmega168 with 8 MHz Xtal</summary>
 
-- **CKDIV8** = 0
 - **SUT1** = 0
 - **CKSEL3** = 0
 - **SPIEN** = 0
+- **EESAVE** = 0
 - **BODLEVEL1** = 0
 - **BODLEVEL0** = 0
 - all other at "1"
 
 In hex form:
-- low byte: **0x57**
-- high byte: **0xDC**
+- low byte: **0xD7**
+- high byte: **0xD4**
 - extended byte: **0xFF**
 </details>
 
 <details>
 <summary>AVR fuses for ATmega48/ATmega88/ATmega168 with internal RC generator</summary>
 
-- **CKDIV8** = 0
-- **SUT1** = 0
 - **SUT0** = 0
 - **CKSEL3** = 0
 - **CKSEL2** = 0
 - **CKSEL0** = 0
 - **SPIEN** = 0
+- **EESAVE** = 0
 - **BODLEVEL1** = 0
 - **BODLEVEL0** = 0
 - all other at "1"
 
 In hex form:
-- low byte: **0x42**
-- high byte: **0xDC**
+- low byte: **0xE2**
+- high byte: **0xD4**
 - extended byte: **0xFF**
 </details>
 
@@ -146,7 +144,7 @@ For extended functions:
 - **pin 16** *(PB2)*: (output) SPI latch *(to pin 12 of **74HC595**)*
 - **pin 17** *(PB3)*: (output) SPI data *(to pin 14 of **74HC595**)*
 - **pin 19** *(PB5)*: (output) SPI clock *(to pin 11 of **74HC595**)*
-- **pin 3** *(PD1)*: (output) TTL UART TX ***for debug*** @125000 8-N-1 (if enabled by [UART_TERM] define, not recommended for actual use)
+- **pin 3** *(PD1)*: (output) TTL UART TX ***for debug*** @500000 8-N-1 (if enabled by [UART_TERM] define, not recommended for actual use)
 
 </details>
 
@@ -186,6 +184,36 @@ Firmware senses state of the sensors on the tape transport and looks for user co
 - Solenoid drive
 
 Single-motor transports usually have one solenoid to perform all mode changes. Firmware provides series of precisely-timed impulses to the solenoid to select desired mode.
+
+### Configurable service features
+
+Firmware is capable of several service function above basic controls. Those features are configurable via writing EEPROM image:
+
+- One-button record engaging (default setting is [REC] + [PLAY])
+- Auto-reverse for playback (Side A -> Side B -> stop)
+- Looped playback (Side A -> Side B -> Side A -> ... in a loop until stopped)
+- Auto-rewind after Side A playback (if auto-reverse is disabled)
+- Auto-rewind after fast forward (for tape retensioning)
+
+### Button priority
+
+Mode control buttons have a certain priority (from highest to lowest):
+
+- Stop
+- Playback
+- Record
+- Fast forward
+- Rewind
+
+When several buttons are pressed the one with higher priority cancels all others.
+
+### Recording guard
+
+Recording function is a bit specific, it usually means some preparation, danger of accidental erasure and the long process that should not be accidentally interrupted. For those reasons firmware implements some guards:
+
+- Recording can be started only when cassette doesn't have the record-protection tab removed
+- Recording can be started only from Stop mode (not from fast wind or playback)
+- When in Record mode the only way to stop it is to press Stop button (buttons for other modes are disabled)
 
 ### Auto-detecting number of "PLAY" buttons
 
@@ -241,16 +269,16 @@ Old video of reverse-engineering **CRP42602Y** transport:
 - State machine for CRP42602Y is working fine (some bugs in edge cases may still be present)
 - State machine for Tanashin-clone is working fine
 - Power saving procedures are working fine
+- Loading transport settings and service features from EEPROM works
 
 ## Plans
 - Add support for more transports
 - Add feature toggling through command buttons in STOP mode (no pins for additional switches)
-- Enable and use EEPROM driver for saving feature configuration and run counters
 - Add more IO on SPI for more switches and indicators
 - Add SPI-slave operations to support higher-level control from another MCU
 
 ## License
-Program copyright 2021-2024.
+Program copyright 2021-2025.
 
 This program is free software.
 Licensed under the Apache License, Version 2.0 (the "License");
