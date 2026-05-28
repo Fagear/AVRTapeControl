@@ -187,13 +187,47 @@ Single-motor transports usually have one solenoid to perform all mode changes. F
 
 ### Configurable service features
 
-Firmware is capable of several service function above basic controls. Those features are configurable via writing EEPROM image:
+Firmware is capable of several service functions above basic controls. Those features are configurable via writing an EEPROM image:
 
 - One-button record engaging (default setting is [REC] + [PLAY])
 - Auto-reverse for playback (Side A -> Side B -> stop)
 - Looped playback (Side A -> Side B -> Side A -> ... in a loop until stopped)
 - Auto-rewind after Side A playback (if auto-reverse is disabled)
 - Auto-rewind after fast forward (for tape retensioning)
+
+Simple step by step command line utility is provided in [/AVRTapeEEPROM](AVRTapeEEPROM) folder that can create proper EEPROM image `avrtape_eep.bin`.
+
+<details>
+<summary>EEPROM data structure</summary>
+
+EEPROM byte order (set in `avrtape.h` file):
+- **byte 0**: starting marker (0xA5)
+- **byte 1**: tape transport selection
+- **byte 2**: transport features
+- **byte 3**: service features
+- **bytes 4...14**: unused
+- **byte 15**: CRC-8 checksum
+
+> [!IMPORTANT]
+> EEPROM driver has wear limiting features, thus all settings are stored in byte-inverted state (0x00 -> 0xFF, 0xA5 -> 0x5A, etc.).
+
+Tape transport selection (set in `avrtape.h` file):
+- **1** = Tanashin TN-21ZLG
+- **2** = CRP42602Y
+
+Transport features (set in `common_log.h` file):
+- **bit 0**: enable checking tachometer in *stop* (for bad belt detection)
+- **bit 1**: enable reverse *playback* operations
+
+Service features (set in `common_log.h` file):
+- **bit 0**: enable two PLAY buttons
+- **bit 1**: enable one-button *record* start
+- **bit 2**: enable auto-reverse for *playback* (auto reverse must be enabled)
+- **bit 3**: enable looped auto-reverse (auto reverse must be enabled)
+- **bit 4**: enable auto-rewind for auto stop after *playback*
+- **bit 5**: enable auto-rewind for auto stop after *fast forward*
+
+</details>
 
 ### Button priority
 
@@ -206,6 +240,18 @@ Mode control buttons have a certain priority (from highest to lowest):
 - Rewind
 
 When several buttons are pressed the one with higher priority cancels all others.
+
+### Event processing
+
+Timing of all events and the solenoid drive (for mode switching) is highly dependent on proper motor drive, fresh belts and correctly set speed of the capstan because mode switching is driven by gears and levers from the capstan rotation. If voltage supplied to the transport motor is too low or belts are loose and slipping or gears are broken proper mode switching could not be achieved.
+
+To minimize damage to the tape and the transport firmware constantly monitors sensors and reacts to abnormal indications.
+
+- If reel rotation in any active tape moving mode slows down too much, firmware tries to stop the transport (and optonally selects next mode if necessary, like auto-reverse or auto-rewind).
+- When mechanism should move from the "home position" (usually *Stop* mode) to another state and the home position sensor is not cleared in correct time (usually indicating weak belts, bad motor, bad solenoid or low voltage), firmware registers a control error and tries to reset mechanism into *Stop* mode and stop the motor.
+- Similarly when mechanism should be moving towards the "home position" and position sensor is not set in correct time, firmware registers a control error and tries to reset mechanism into *Stop* mode and stop the motor.
+- When mechanism unexpectedly moves into the "home position" (most likely from external forces acting on the transport during active tape moving), firmware does not set an error and re-adjusts internal state to match the most passive state of the mechanism.
+- When the cassette presence sensor registers that cassette is not longer inside the transport during active tape moving mode (cassette has dropped out or was pulled out before selecting "*Stop*" mode), firmware switches transport into the *Stop* mode to disengage heads and pinch roller to prevent damage to the tape.
 
 ### Recording guard
 
@@ -236,7 +282,7 @@ If "*Stop*" button is held at the powerup, firmware will perform 10 second self-
 
 "*Fault*" indicator will stay active.
 
-Other indicators will switch state **once a second**:
+Other indicators will switch state **once a second** in this sequence:
 
 - "*Stop*" is active
 - "*Playback in forward*" and "*Playback in reverse*" are active
@@ -278,7 +324,7 @@ Old video of reverse-engineering **CRP42602Y** transport:
 - Add SPI-slave operations to support higher-level control from another MCU
 
 ## License
-Program copyright 2021-2025.
+Program copyright 2021-2026.
 
 This program is free software.
 Licensed under the Apache License, Version 2.0 (the "License");

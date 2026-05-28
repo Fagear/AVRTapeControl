@@ -66,10 +66,9 @@ enum
 enum
 {
 	TTR_ERR_NONE		= 0x00,		// No error registered
-	TTR_ERR_TAPE_LOST	= 0x01,		// Tape was removed during operation
-	TTR_ERR_BAD_DRIVE	= 0x02,		// No tacho in stop, probably bad belts or motor stall
-	TTR_ERR_NO_CTRL		= 0x04,		// Unable to transition through modes, probably low power to solenoid, bad solenoid or actuator jammed
-	TTR_ERR_LOGIC_FAULT = 0x80,		// Abnormal logic state detected
+	TTR_ERR_BAD_DRIVE	= 0x01,		// No tacho in stop, probably bad belts or motor stall
+	TTR_ERR_NO_CTRL		= 0x02,		// Unable to transition through modes, probably low power to solenoid, bad solenoid or actuator jammed
+	TTR_ERR_LOGIC_FAULT = 0x04,		// Abnormal logic state detected
 };
 
 // Flags for transport features for [u8a_settings[EPS_TTR_FTRS]].

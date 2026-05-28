@@ -6,6 +6,7 @@ uint8_t u8_crp42602y_error=TTR_ERR_NONE;				// Last transport error
 uint8_t u8_crp42602y_trans_timer=0;						// Solenoid holding timer
 uint16_t u16_crp42602y_idle_time=0;						// Timer for disabling capstan motor
 uint8_t u8_crp42602y_retries=0;							// Number of retries before transport halts
+uint32_t u32_tach_cnt=0;
 
 #ifdef UART_TERM
 char u8a_crp42602y_buf[32];								// Buffer for UART debug messages

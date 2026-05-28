@@ -90,7 +90,7 @@ enum
 {
 	TTR_TYPE_TANASHIN,				// Tanashin TN-21ZLG clone mechanism from AliExpress
 	TTR_TYPE_CRP42602Y,				// CRP42602Y mechanism from AliExpress
-	TTR_TYPE_KENWOOD,				// Kenwood mechanism
+	TTR_TYPE_KENWOOD,				// Kenwood mechanism (work in progress)
 	TTR_TYPE_COUNT
 };
 

@@ -23,6 +23,8 @@
 *.lo
 
 # Shared objects (inc. Windows DLLs)
+.vs/
+*.atsuo
 *.dll
 *.so
 *.so.*
