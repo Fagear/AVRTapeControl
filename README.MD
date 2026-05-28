@@ -197,6 +197,9 @@ Firmware is capable of several service functions above basic controls. Those fea
 
 Simple step by step command line utility is provided in [/AVRTapeEEPROM](AVRTapeEEPROM) folder that can create proper EEPROM image `avrtape_eep.bin`.
 
+> [!IMPORTANT]
+> EEPROM driver has wear limiting features, thus all settings are stored in byte-inverted state (0x00 -> 0xFF, 0xA5 -> 0x5A, etc.).
+
 <details>
 <summary>EEPROM data structure</summary>
 
@@ -207,9 +210,6 @@ EEPROM byte order (set in `avrtape.h` file):
 - **byte 3**: service features
 - **bytes 4...14**: unused
 - **byte 15**: CRC-8 checksum
-
-> [!IMPORTANT]
-> EEPROM driver has wear limiting features, thus all settings are stored in byte-inverted state (0x00 -> 0xFF, 0xA5 -> 0x5A, etc.).
 
 Tape transport selection (set in `avrtape.h` file):
 - **1** = Tanashin TN-21ZLG
